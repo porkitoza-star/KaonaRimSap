@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: kaonaa-erp-backend
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter backend prisma:generate && pnpm --filter backend build
+    startCommand: pnpm --filter backend prisma:deploy && pnpm --filter backend start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.2
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kaonaa-erp-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_OCR_MODEL
+        value: claude-sonnet-5
+      - key: CEO_APPROVAL_THRESHOLD_THB
+        value: "50000"
+      - key: DOCUMENTS_STORAGE_PATH
+        value: /var/data/uploads
+    disk:
+      name: kaonaa-erp-uploads
+      mountPath: /var/data
+      sizeGB: 1
+
+  - type: web
+    name: kaonaa-erp-frontend
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter frontend build
+    startCommand: pnpm --filter frontend start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.2
+      - key: NEXT_PUBLIC_API_URL
+        value: https://kaonaa-erp-backend.onrender.com/api
+
+databases:
+  - name: kaonaa-erp-db
+    plan: starter
+    region: singapore
