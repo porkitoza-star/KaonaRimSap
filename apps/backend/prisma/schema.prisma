@@ -1,0 +1,363 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CEO
+  CFO
+  ACCOUNTANT
+  PROJECT_MANAGER
+  VIEWER
+}
+
+enum CostCenterType {
+  PROJECT
+  HOUSE
+  OVERHEAD
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum ContactType {
+  CUSTOMER
+  SUPPLIER
+  CONTRACTOR
+  BOTH
+}
+
+enum DocumentStatus {
+  PENDING_REVIEW
+  CONFIRMED
+  REJECTED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum BillStatus {
+  DRAFT
+  CONFIRMED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum PaymentDirection {
+  RECEIVE
+  PAY
+}
+
+enum PaymentStatus {
+  PENDING_CFO_APPROVAL
+  PENDING_CEO_APPROVAL
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum ApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WhtCertType {
+  PND3
+  PND53
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  uploadedDocuments Document[]        @relation("DocumentUploadedBy")
+  reviewedDocuments Document[]        @relation("DocumentReviewedBy")
+  proposedPayments  Payment[]         @relation("PaymentProposedBy")
+  approvals         PaymentApproval[]
+  auditLogs         AuditLog[]
+
+  @@map("users")
+}
+
+model CostCenter {
+  id        String         @id @default(uuid())
+  name      String
+  type      CostCenterType
+  parentId  String?
+  parent    CostCenter?    @relation("CostCenterHierarchy", fields: [parentId], references: [id])
+  children  CostCenter[]   @relation("CostCenterHierarchy")
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  journalEntryLines JournalEntryLine[]
+  invoiceLines      InvoiceLine[]
+  billLines         BillLine[]
+  documents         Document[]
+
+  @@map("cost_centers")
+}
+
+model Account {
+  id        String      @id @default(uuid())
+  code      String      @unique
+  name      String
+  type      AccountType
+  parentId  String?
+  parent    Account?    @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children  Account[]   @relation("AccountHierarchy")
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  journalEntryLines JournalEntryLine[]
+  invoiceLines      InvoiceLine[]
+  billLines         BillLine[]
+  documents         Document[]
+
+  @@map("chart_of_accounts")
+}
+
+model JournalEntry {
+  id          String   @id @default(uuid())
+  entryDate   DateTime
+  description String
+  sourceType  String
+  sourceId    String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  lines JournalEntryLine[]
+
+  @@map("journal_entries")
+}
+
+model JournalEntryLine {
+  id             String       @id @default(uuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id])
+  costCenterId   String?
+  costCenter     CostCenter?  @relation(fields: [costCenterId], references: [id])
+  debit          Decimal      @default(0) @db.Decimal(15, 2)
+  credit         Decimal      @default(0) @db.Decimal(15, 2)
+  memo           String?
+
+  @@map("journal_entry_lines")
+}
+
+model Contact {
+  id        String      @id @default(uuid())
+  name      String
+  type      ContactType
+  taxId     String?
+  address   String?
+  phone     String?
+  email     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  invoices Invoice[]
+  bills    Bill[]
+
+  @@map("contacts")
+}
+
+model Invoice {
+  id          String        @id @default(uuid())
+  number      String        @unique
+  contactId   String
+  contact     Contact       @relation(fields: [contactId], references: [id])
+  issueDate   DateTime
+  dueDate     DateTime
+  subtotal    Decimal       @db.Decimal(15, 2)
+  vatAmount   Decimal       @db.Decimal(15, 2)
+  totalAmount Decimal       @db.Decimal(15, 2)
+  status      InvoiceStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  lines              InvoiceLine[]
+  paymentAllocations PaymentAllocation[]
+
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id           String     @id @default(uuid())
+  invoiceId    String
+  invoice      Invoice    @relation(fields: [invoiceId], references: [id])
+  description  String
+  amount       Decimal    @db.Decimal(15, 2)
+  costCenterId String
+  costCenter   CostCenter @relation(fields: [costCenterId], references: [id])
+  accountId    String
+  account      Account    @relation(fields: [accountId], references: [id])
+
+  @@map("invoice_lines")
+}
+
+model Bill {
+  id          String     @id @default(uuid())
+  number      String     @unique
+  contactId   String
+  contact     Contact    @relation(fields: [contactId], references: [id])
+  issueDate   DateTime
+  dueDate     DateTime
+  subtotal    Decimal    @db.Decimal(15, 2)
+  vatAmount   Decimal    @db.Decimal(15, 2)
+  whtAmount   Decimal    @default(0) @db.Decimal(15, 2)
+  totalAmount Decimal    @db.Decimal(15, 2)
+  status      BillStatus @default(DRAFT)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  lines              BillLine[]
+  documents          Document[]
+  whtCertificates    WhtCertificate[]
+  paymentAllocations PaymentAllocation[]
+
+  @@map("bills")
+}
+
+model BillLine {
+  id           String     @id @default(uuid())
+  billId       String
+  bill         Bill       @relation(fields: [billId], references: [id])
+  description  String
+  amount       Decimal    @db.Decimal(15, 2)
+  costCenterId String
+  costCenter   CostCenter @relation(fields: [costCenterId], references: [id])
+  accountId    String
+  account      Account    @relation(fields: [accountId], references: [id])
+
+  @@map("bill_lines")
+}
+
+model Payment {
+  id           String           @id @default(uuid())
+  direction    PaymentDirection
+  amount       Decimal          @db.Decimal(15, 2)
+  paymentDate  DateTime?
+  method       String?
+  status       PaymentStatus    @default(PENDING_CFO_APPROVAL)
+  proposedById String
+  proposedBy   User             @relation("PaymentProposedBy", fields: [proposedById], references: [id])
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  approvals       PaymentApproval[]
+  allocations     PaymentAllocation[]
+  whtCertificates WhtCertificate[]
+
+  @@map("payments")
+}
+
+model PaymentAllocation {
+  id        String   @id @default(uuid())
+  paymentId String
+  payment   Payment  @relation(fields: [paymentId], references: [id])
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+  billId    String?
+  bill      Bill?    @relation(fields: [billId], references: [id])
+  amount    Decimal  @db.Decimal(15, 2)
+
+  @@map("payment_allocations")
+}
+
+model PaymentApproval {
+  id         String           @id @default(uuid())
+  paymentId  String
+  payment    Payment          @relation(fields: [paymentId], references: [id])
+  level      Int
+  approverId String?
+  approver   User?            @relation(fields: [approverId], references: [id])
+  decision   ApprovalDecision @default(PENDING)
+  comment    String?
+  decidedAt  DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@map("payment_approvals")
+}
+
+model Document {
+  id           String         @id @default(uuid())
+  fileUrl      String
+  fileType     String
+  ocrRawJson   Json?
+  status       DocumentStatus @default(PENDING_REVIEW)
+  uploadedById String
+  uploadedBy   User           @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
+  reviewedById String?
+  reviewedBy   User?          @relation("DocumentReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  costCenterId String?
+  costCenter   CostCenter?    @relation(fields: [costCenterId], references: [id])
+  accountId    String?
+  account      Account?       @relation(fields: [accountId], references: [id])
+  billId       String?
+  bill         Bill?          @relation(fields: [billId], references: [id])
+  notes        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("documents")
+}
+
+model WhtCertificate {
+  id             String      @id @default(uuid())
+  certType       WhtCertType
+  certNumber     String      @unique
+  billId         String?
+  bill           Bill?       @relation(fields: [billId], references: [id])
+  paymentId      String?
+  payment        Payment?    @relation(fields: [paymentId], references: [id])
+  incomeTypeCode String
+  baseAmount     Decimal     @db.Decimal(15, 2)
+  whtRate        Decimal     @db.Decimal(5, 2)
+  whtAmount      Decimal     @db.Decimal(15, 2)
+  issueDate      DateTime
+  createdAt      DateTime    @default(now())
+
+  @@map("wht_certificates")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  beforeJson Json?
+  afterJson  Json?
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}
