@@ -1,0 +1,8 @@
+export const VAT_RATE = 0.07;
+
+export const STANDARD_ACCOUNT_CODES = {
+  ACCOUNTS_RECEIVABLE: '1030',
+  ACCOUNTS_PAYABLE: '2010',
+  VAT_OUTPUT: '2020',
+  VAT_INPUT: '1060',
+} as const;

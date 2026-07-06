@@ -6,6 +6,9 @@ import { AuditModule } from './audit/audit.module';
 import { CostCentersModule } from './cost-centers/cost-centers.module';
 import { ChartOfAccountsModule } from './chart-of-accounts/chart-of-accounts.module';
 import { JournalModule } from './journal/journal.module';
+import { ContactsModule } from './contacts/contacts.module';
+import { InvoicesModule } from './invoices/invoices.module';
+import { BillsModule } from './bills/bills.module';
 
 @Module({
   imports: [
@@ -16,6 +19,9 @@ import { JournalModule } from './journal/journal.module';
     CostCentersModule,
     ChartOfAccountsModule,
     JournalModule,
+    ContactsModule,
+    InvoicesModule,
+    BillsModule,
   ],
 })
 export class AppModule {}
