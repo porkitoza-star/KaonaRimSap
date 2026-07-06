@@ -20,7 +20,9 @@
       "@prisma/client",
       "@prisma/engines",
       "bcrypt",
-      "prisma"
+      "prisma",
+      "sharp",
+      "unrs-resolver"
     ]
   }
 }
