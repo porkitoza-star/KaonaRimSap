@@ -17,5 +17,6 @@
     "noImplicitAny": true,
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true
-  }
+  },
+  "include": ["src/**/*"]
 }
