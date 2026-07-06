@@ -11,6 +11,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { BillsModule } from './bills/bills.module';
 import { DocumentsModule } from './documents/documents.module';
 import { PaymentsModule } from './payments/payments.module';
+import { WhtCertificatesModule } from './wht/wht-certificates.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { PaymentsModule } from './payments/payments.module';
     BillsModule,
     DocumentsModule,
     PaymentsModule,
+    WhtCertificatesModule,
   ],
 })
 export class AppModule {}
