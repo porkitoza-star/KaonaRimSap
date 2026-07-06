@@ -12,6 +12,7 @@ import { BillsModule } from './bills/bills.module';
 import { DocumentsModule } from './documents/documents.module';
 import { PaymentsModule } from './payments/payments.module';
 import { WhtCertificatesModule } from './wht/wht-certificates.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { WhtCertificatesModule } from './wht/wht-certificates.module';
     DocumentsModule,
     PaymentsModule,
     WhtCertificatesModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}
