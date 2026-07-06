@@ -21,6 +21,9 @@ pnpm-debug.log*
 # Prisma
 apps/backend/prisma/dev.db
 
+# Local document uploads (dev only; Render uses a persistent disk mount)
+apps/backend/uploads/
+
 # Testing
 coverage/
 

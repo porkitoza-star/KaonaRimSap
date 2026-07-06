@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ContactType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateContactDto } from './dto/create-contact.dto';
@@ -33,6 +34,18 @@ export class ContactsService {
       after: created,
     });
     return created;
+  }
+
+  async findOrCreateSupplier(name: string, taxId?: string) {
+    if (taxId) {
+      const existing = await this.prisma.contact.findFirst({ where: { taxId } });
+      if (existing) {
+        return existing;
+      }
+    }
+    return this.prisma.contact.create({
+      data: { name, type: ContactType.SUPPLIER, taxId },
+    });
   }
 
   async update(id: string, dto: UpdateContactDto, userId: string) {
