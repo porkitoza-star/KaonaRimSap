@@ -133,16 +133,9 @@ render.yaml       Render Blueprint สำหรับ deploy backend (frontend d
    - `DATABASE_URL` = connection string จาก Neon ที่คัดลอกไว้
    - `ANTHROPIC_API_KEY` = API key จาก https://console.anthropic.com (ถ้ายังไม่มี ข้ามได้ก่อน แค่ OCR จะไม่ทำงาน)
    - `FRONTEND_URL` = ใส่ URL ของ Vercel (ทำขั้นตอนที่ 3 ก่อนแล้วค่อยกลับมาใส่ค่านี้ก็ได้)
-5. รอ build เสร็จ (จะรัน `prisma migrate deploy` อัตโนมัติ)
-6. **Seed ข้อมูลเริ่มต้นครั้งแรก** — เข้าแท็บ **Shell** ของ service แล้วรัน:
-
-   ```bash
-   pnpm --filter backend prisma:seed
-   ```
-
-   (สร้างผังบัญชีมาตรฐาน + user CEO/CFO ตัวอย่าง — **เปลี่ยนรหัสผ่านทันทีหลังใช้งานจริง**)
-
-7. จด URL ของ backend ไว้ (รูปแบบ `https://kaonaa-erp-backend.onrender.com`) — ใช้ในขั้นตอนถัดไป
+5. รอ build เสร็จ — `startCommand` จะรัน `prisma migrate deploy` แล้ว seed ข้อมูลเริ่มต้น (ผังบัญชีมาตรฐาน + user CEO/CFO ตัวอย่าง) อัตโนมัติทุกครั้งที่ deploy โดยไม่ต้องเข้า Shell (Free plan ของ Render ไม่รองรับ Shell/SSH อยู่แล้ว) — seed script เขียนแบบ upsert จึงรันซ้ำได้โดยไม่สร้างข้อมูลซ้ำ
+   > **เปลี่ยนรหัสผ่าน CEO/CFO ทันทีหลังใช้งานจริงครั้งแรก**
+6. จด URL ของ backend ไว้ (รูปแบบ `https://kaonaa-erp-backend.onrender.com`) — ใช้ในขั้นตอนถัดไป
 
 ### 3) Deploy frontend บน Vercel
 
