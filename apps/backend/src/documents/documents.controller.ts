@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -12,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { DocumentStatus, Role } from '@prisma/client';
+import { DocumentCategory, DocumentStatus, Role } from '@prisma/client';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -27,8 +28,22 @@ export class DocumentsController {
   constructor(private documentsService: DocumentsService) {}
 
   @Get()
-  findAll(@Query('status') status?: DocumentStatus) {
-    return this.documentsService.findAll(status);
+  findAll(
+    @Query('status') status?: DocumentStatus,
+    @Query('category') category?: DocumentCategory,
+  ) {
+    return this.documentsService.findAll(status, category);
+  }
+
+  @Get('export')
+  async export(@Res() res: Response) {
+    const buffer = await this.documentsService.exportExcel();
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', 'attachment; filename="documents.xlsx"');
+    res.send(buffer);
   }
 
   @Get(':id')
@@ -46,9 +61,17 @@ export class DocumentsController {
 
   @Post('upload')
   @Roles(Role.ACCOUNTANT, Role.PROJECT_MANAGER, Role.CFO, Role.CEO)
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
-  upload(@UploadedFile() file: Express.Multer.File, @CurrentUser() user: AuthenticatedUser) {
-    return this.documentsService.upload(file, user.userId);
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  upload(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('category') category: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const resolvedCategory = category ?? DocumentCategory.BILL;
+    if (!Object.values(DocumentCategory).includes(resolvedCategory as DocumentCategory)) {
+      throw new BadRequestException('ประเภทเอกสารไม่ถูกต้อง');
+    }
+    return this.documentsService.upload(file, user.userId, resolvedCategory as DocumentCategory);
   }
 
   @Post(':id/confirm')

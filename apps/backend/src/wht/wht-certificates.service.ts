@@ -1,14 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { buildExcelBuffer } from '../common/excel-export.util';
 import { CreateWhtCertificateDto } from './dto/create-wht-certificate.dto';
-
-function csvEscape(value: string): string {
-  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
 
 @Injectable()
 export class WhtCertificatesService {
@@ -78,7 +72,7 @@ export class WhtCertificatesService {
     return created;
   }
 
-  async exportCsv(year?: number): Promise<string> {
+  async exportExcel(year?: number) {
     const certs = await this.prisma.whtCertificate.findMany({
       where: year
         ? { issueDate: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) } }
@@ -87,29 +81,23 @@ export class WhtCertificatesService {
       orderBy: { issueDate: 'asc' },
     });
 
-    const header = [
-      'เลขที่ใบหัก ณ ที่จ่าย',
-      'ประเภทแบบ',
-      'ประเภทเงินได้',
-      'ชื่อผู้ถูกหัก',
-      'เลขผู้เสียภาษี',
-      'วันที่ออกเอกสาร',
-      'ยอดเงินได้',
-      'อัตราภาษี (%)',
-      'ภาษีหัก ณ ที่จ่าย',
-    ];
-    const rows = certs.map((c) => [
-      c.certNumber,
-      c.certType,
-      c.incomeTypeCode,
-      c.bill?.contact.name ?? '',
-      c.bill?.contact.taxId ?? '',
-      c.issueDate.toISOString().slice(0, 10),
-      c.baseAmount.toString(),
-      c.whtRate.toString(),
-      c.whtAmount.toString(),
-    ]);
-
-    return [header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n');
+    return buildExcelBuffer(
+      'WHT Certificates',
+      [
+        { header: 'เลขที่ใบหัก ณ ที่จ่าย', value: (c: (typeof certs)[number]) => c.certNumber },
+        { header: 'ประเภทแบบ', value: (c: (typeof certs)[number]) => c.certType },
+        { header: 'ประเภทเงินได้', value: (c: (typeof certs)[number]) => c.incomeTypeCode },
+        { header: 'ชื่อผู้ถูกหัก', value: (c: (typeof certs)[number]) => c.bill?.contact.name ?? '' },
+        { header: 'เลขผู้เสียภาษี', value: (c: (typeof certs)[number]) => c.bill?.contact.taxId ?? '' },
+        {
+          header: 'วันที่ออกเอกสาร',
+          value: (c: (typeof certs)[number]) => c.issueDate.toISOString().slice(0, 10),
+        },
+        { header: 'ยอดเงินได้', value: (c: (typeof certs)[number]) => Number(c.baseAmount) },
+        { header: 'อัตราภาษี (%)', value: (c: (typeof certs)[number]) => Number(c.whtRate) },
+        { header: 'ภาษีหัก ณ ที่จ่าย', value: (c: (typeof certs)[number]) => Number(c.whtAmount) },
+      ],
+      certs,
+    );
   }
 }

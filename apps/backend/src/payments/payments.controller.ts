@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -17,6 +18,17 @@ export class PaymentsController {
   @Get()
   findAll() {
     return this.paymentsService.findAll();
+  }
+
+  @Get('export')
+  async export(@Res() res: Response) {
+    const buffer = await this.paymentsService.exportExcel();
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', 'attachment; filename="payments.xlsx"');
+    res.send(buffer);
   }
 
   @Get(':id')

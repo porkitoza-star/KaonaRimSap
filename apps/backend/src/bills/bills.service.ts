@@ -3,6 +3,7 @@ import { BillStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { JournalService } from '../journal/journal.service';
+import { buildExcelBuffer } from '../common/excel-export.util';
 import { CreateBillDto } from './dto/create-bill.dto';
 import { STANDARD_ACCOUNT_CODES } from '../common/constants';
 
@@ -149,5 +150,27 @@ export class BillsService {
       after: updated,
     });
     return updated;
+  }
+
+  async exportExcel() {
+    const bills = await this.prisma.bill.findMany({
+      include: { contact: true },
+      orderBy: { issueDate: 'desc' },
+    });
+    return buildExcelBuffer(
+      'Bills',
+      [
+        { header: 'เลขที่', value: (r: (typeof bills)[number]) => r.number },
+        { header: 'คู่ค้า', value: (r: (typeof bills)[number]) => r.contact.name },
+        { header: 'วันที่ออก', value: (r: (typeof bills)[number]) => r.issueDate.toISOString().slice(0, 10) },
+        { header: 'ครบกำหนด', value: (r: (typeof bills)[number]) => r.dueDate.toISOString().slice(0, 10) },
+        { header: 'ยอดก่อน VAT', value: (r: (typeof bills)[number]) => Number(r.subtotal) },
+        { header: 'VAT', value: (r: (typeof bills)[number]) => Number(r.vatAmount) },
+        { header: 'หัก ณ ที่จ่าย', value: (r: (typeof bills)[number]) => Number(r.whtAmount) },
+        { header: 'ยอดรวม', value: (r: (typeof bills)[number]) => Number(r.totalAmount) },
+        { header: 'สถานะ', value: (r: (typeof bills)[number]) => r.status },
+      ],
+      bills,
+    );
   }
 }

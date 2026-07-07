@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { buildExcelBuffer } from '../common/excel-export.util';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 
@@ -64,5 +65,23 @@ export class ChartOfAccountsService {
       after: updated,
     });
     return updated;
+  }
+
+  async exportExcel() {
+    const accounts = await this.prisma.account.findMany({
+      include: { parent: true },
+      orderBy: { code: 'asc' },
+    });
+    return buildExcelBuffer(
+      'Chart of Accounts',
+      [
+        { header: 'รหัสบัญชี', value: (r: (typeof accounts)[number]) => r.code },
+        { header: 'ชื่อบัญชี', value: (r: (typeof accounts)[number]) => r.name },
+        { header: 'ประเภท', value: (r: (typeof accounts)[number]) => r.type },
+        { header: 'บัญชีแม่', value: (r: (typeof accounts)[number]) => r.parent?.name ?? '' },
+        { header: 'สถานะ', value: (r: (typeof accounts)[number]) => (r.isActive ? 'ใช้งาน' : 'ปิดใช้งาน') },
+      ],
+      accounts,
+    );
   }
 }

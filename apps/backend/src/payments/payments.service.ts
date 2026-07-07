@@ -12,6 +12,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { JournalService } from '../journal/journal.service';
+import { buildExcelBuffer } from '../common/excel-export.util';
 import { ProposePaymentDto } from './dto/propose-payment.dto';
 import { RecordReceiptDto } from './dto/record-receipt.dto';
 import { STANDARD_ACCOUNT_CODES } from '../common/constants';
@@ -333,5 +334,30 @@ export class PaymentsService {
       after: updated,
     });
     return updated;
+  }
+
+  async exportExcel() {
+    const payments = await this.prisma.payment.findMany({
+      include: { proposedBy: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return buildExcelBuffer(
+      'Payments',
+      [
+        {
+          header: 'ประเภท',
+          value: (r: (typeof payments)[number]) => (r.direction === 'PAY' ? 'จ่ายเงิน' : 'รับเงิน'),
+        },
+        { header: 'จำนวนเงิน', value: (r: (typeof payments)[number]) => Number(r.amount) },
+        { header: 'วิธี', value: (r: (typeof payments)[number]) => r.method ?? '' },
+        { header: 'ผู้เสนอ', value: (r: (typeof payments)[number]) => r.proposedBy.name },
+        { header: 'สถานะ', value: (r: (typeof payments)[number]) => r.status },
+        {
+          header: 'วันที่ชำระ',
+          value: (r: (typeof payments)[number]) => (r.paymentDate ? r.paymentDate.toISOString().slice(0, 10) : ''),
+        },
+      ],
+      payments,
+    );
   }
 }

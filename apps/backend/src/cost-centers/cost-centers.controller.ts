@@ -5,8 +5,10 @@ import {
   Param,
   Patch,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -24,6 +26,17 @@ export class CostCentersController {
   @Get()
   findAll() {
     return this.costCentersService.findAll();
+  }
+
+  @Get('export')
+  async export(@Res() res: Response) {
+    const buffer = await this.costCentersService.exportExcel();
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', 'attachment; filename="cost-centers.xlsx"');
+    res.send(buffer);
   }
 
   @Get(':id')

@@ -1,9 +1,10 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { DocumentStatus } from '@prisma/client';
+import { DocumentCategory, DocumentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { BillsService } from '../bills/bills.service';
+import { buildExcelBuffer } from '../common/excel-export.util';
 import { LocalStorageService } from './storage/local-storage.service';
 import { ClaudeOcrService } from './ocr/claude-ocr.service';
 import { ConfirmDocumentDto } from './dto/confirm-document.dto';
@@ -21,23 +22,31 @@ export class DocumentsService {
     private bills: BillsService,
   ) {}
 
-  async upload(file: Express.Multer.File, userId: string) {
+  async upload(file: Express.Multer.File, userId: string, category: DocumentCategory) {
     const fileUrl = await this.storage.save(file.buffer, file.originalname);
 
+    // OCR is tuned for reading bill/tax-invoice amounts; other document
+    // categories (BOQ, permits, blueprints, POs, photos) are just filed as-is.
     let ocrRawJson: object | undefined;
-    try {
-      ocrRawJson = (await this.ocr.extractBillData(file.buffer, file.mimetype)) as unknown as object;
-    } catch (err) {
-      this.logger.warn(`OCR extraction failed, leaving document for manual entry: ${err}`);
+    if (category === DocumentCategory.BILL && file.mimetype.startsWith('image/')) {
+      try {
+        ocrRawJson = (await this.ocr.extractBillData(file.buffer, file.mimetype)) as unknown as object;
+      } catch (err) {
+        this.logger.warn(`OCR extraction failed, leaving document for manual entry: ${err}`);
+      }
     }
 
+    const isBill = category === DocumentCategory.BILL;
     const document = await this.prisma.document.create({
       data: {
         fileUrl,
         fileType: file.mimetype,
+        category,
         ocrRawJson,
         uploadedById: userId,
-        status: DocumentStatus.PENDING_REVIEW,
+        status: isBill ? DocumentStatus.PENDING_REVIEW : DocumentStatus.CONFIRMED,
+        reviewedById: isBill ? undefined : userId,
+        reviewedAt: isBill ? undefined : new Date(),
       },
     });
 
@@ -51,9 +60,9 @@ export class DocumentsService {
     return document;
   }
 
-  findAll(status?: DocumentStatus) {
+  findAll(status?: DocumentStatus, category?: DocumentCategory) {
     return this.prisma.document.findMany({
-      where: status ? { status } : undefined,
+      where: { status, category },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -146,5 +155,26 @@ export class DocumentsService {
       after: updated,
     });
     return updated;
+  }
+
+  async exportExcel() {
+    const documents = await this.prisma.document.findMany({
+      include: { uploadedBy: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return buildExcelBuffer(
+      'Documents',
+      [
+        { header: 'ประเภท', value: (r: (typeof documents)[number]) => r.category },
+        { header: 'สถานะ', value: (r: (typeof documents)[number]) => r.status },
+        { header: 'ผู้อัปโหลด', value: (r: (typeof documents)[number]) => r.uploadedBy.name },
+        {
+          header: 'วันที่อัปโหลด',
+          value: (r: (typeof documents)[number]) => r.createdAt.toISOString().slice(0, 10),
+        },
+        { header: 'หมายเหตุ', value: (r: (typeof documents)[number]) => r.notes ?? '' },
+      ],
+      documents,
+    );
   }
 }

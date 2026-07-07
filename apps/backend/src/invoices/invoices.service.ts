@@ -3,6 +3,7 @@ import { InvoiceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { JournalService } from '../journal/journal.service';
+import { buildExcelBuffer } from '../common/excel-export.util';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { VAT_RATE, STANDARD_ACCOUNT_CODES } from '../common/constants';
 
@@ -147,5 +148,26 @@ export class InvoicesService {
       after: updated,
     });
     return updated;
+  }
+
+  async exportExcel() {
+    const invoices = await this.prisma.invoice.findMany({
+      include: { contact: true },
+      orderBy: { issueDate: 'desc' },
+    });
+    return buildExcelBuffer(
+      'Invoices',
+      [
+        { header: 'เลขที่', value: (r: (typeof invoices)[number]) => r.number },
+        { header: 'ลูกค้า', value: (r: (typeof invoices)[number]) => r.contact.name },
+        { header: 'วันที่ออก', value: (r: (typeof invoices)[number]) => r.issueDate.toISOString().slice(0, 10) },
+        { header: 'ครบกำหนด', value: (r: (typeof invoices)[number]) => r.dueDate.toISOString().slice(0, 10) },
+        { header: 'ยอดก่อน VAT', value: (r: (typeof invoices)[number]) => Number(r.subtotal) },
+        { header: 'VAT', value: (r: (typeof invoices)[number]) => Number(r.vatAmount) },
+        { header: 'ยอดรวม', value: (r: (typeof invoices)[number]) => Number(r.totalAmount) },
+        { header: 'สถานะ', value: (r: (typeof invoices)[number]) => r.status },
+      ],
+      invoices,
+    );
   }
 }

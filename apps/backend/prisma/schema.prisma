@@ -42,6 +42,16 @@ enum DocumentStatus {
   REJECTED
 }
 
+enum DocumentCategory {
+  BILL
+  BOQ
+  PERMIT
+  BLUEPRINT
+  PURCHASE_ORDER
+  PHOTO
+  OTHER
+}
+
 enum InvoiceStatus {
   DRAFT
   SENT
@@ -307,25 +317,26 @@ model PaymentApproval {
 }
 
 model Document {
-  id           String         @id @default(uuid())
+  id           String           @id @default(uuid())
   fileUrl      String
   fileType     String
+  category     DocumentCategory @default(BILL)
   ocrRawJson   Json?
-  status       DocumentStatus @default(PENDING_REVIEW)
+  status       DocumentStatus   @default(PENDING_REVIEW)
   uploadedById String
-  uploadedBy   User           @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
+  uploadedBy   User             @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
   reviewedById String?
-  reviewedBy   User?          @relation("DocumentReviewedBy", fields: [reviewedById], references: [id])
+  reviewedBy   User?            @relation("DocumentReviewedBy", fields: [reviewedById], references: [id])
   reviewedAt   DateTime?
   costCenterId String?
-  costCenter   CostCenter?    @relation(fields: [costCenterId], references: [id])
+  costCenter   CostCenter?      @relation(fields: [costCenterId], references: [id])
   accountId    String?
-  account      Account?       @relation(fields: [accountId], references: [id])
+  account      Account?         @relation(fields: [accountId], references: [id])
   billId       String?
-  bill         Bill?          @relation(fields: [billId], references: [id])
+  bill         Bill?            @relation(fields: [billId], references: [id])
   notes        String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   @@map("documents")
 }

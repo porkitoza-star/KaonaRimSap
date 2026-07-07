@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ContactType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { buildExcelBuffer } from '../common/excel-export.util';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 
@@ -60,5 +61,21 @@ export class ContactsService {
       after: updated,
     });
     return updated;
+  }
+
+  async exportExcel() {
+    const contacts = await this.prisma.contact.findMany({ orderBy: { name: 'asc' } });
+    return buildExcelBuffer(
+      'Contacts',
+      [
+        { header: 'ชื่อ', value: (r: (typeof contacts)[number]) => r.name },
+        { header: 'ประเภท', value: (r: (typeof contacts)[number]) => r.type },
+        { header: 'เลขผู้เสียภาษี', value: (r: (typeof contacts)[number]) => r.taxId ?? '' },
+        { header: 'โทรศัพท์', value: (r: (typeof contacts)[number]) => r.phone ?? '' },
+        { header: 'อีเมล', value: (r: (typeof contacts)[number]) => r.email ?? '' },
+        { header: 'ที่อยู่', value: (r: (typeof contacts)[number]) => r.address ?? '' },
+      ],
+      contacts,
+    );
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { buildExcelBuffer } from '../common/excel-export.util';
 import { CreateCostCenterDto } from './dto/create-cost-center.dto';
 import { UpdateCostCenterDto } from './dto/update-cost-center.dto';
 
@@ -56,5 +57,22 @@ export class CostCentersService {
       after: updated,
     });
     return updated;
+  }
+
+  async exportExcel() {
+    const costCenters = await this.prisma.costCenter.findMany({
+      include: { parent: true },
+      orderBy: { name: 'asc' },
+    });
+    return buildExcelBuffer(
+      'Cost Centers',
+      [
+        { header: 'ชื่อ', value: (r: (typeof costCenters)[number]) => r.name },
+        { header: 'ประเภท', value: (r: (typeof costCenters)[number]) => r.type },
+        { header: 'โครงการแม่', value: (r: (typeof costCenters)[number]) => r.parent?.name ?? '' },
+        { header: 'สถานะ', value: (r: (typeof costCenters)[number]) => (r.isActive ? 'ใช้งาน' : 'ปิดใช้งาน') },
+      ],
+      costCenters,
+    );
   }
 }
