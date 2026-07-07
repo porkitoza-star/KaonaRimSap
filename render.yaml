@@ -23,6 +23,8 @@ services:
         value: "50000"
       - key: DOCUMENTS_STORAGE_PATH
         value: ./uploads
+      - key: FRONTEND_URL
+        value: https://kaonaa-erp-frontend.onrender.com
 
   - type: web
     name: kaonaa-erp-frontend
