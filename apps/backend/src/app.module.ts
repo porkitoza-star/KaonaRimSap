@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 import { AuditModule } from './audit/audit.module';
 import { CostCentersModule } from './cost-centers/cost-centers.module';
 import { ChartOfAccountsModule } from './chart-of-accounts/chart-of-accounts.module';
@@ -23,6 +24,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     PrismaModule,
     AuditModule,
     AuthModule,
+    UsersModule,
     CostCentersModule,
     ChartOfAccountsModule,
     JournalModule,

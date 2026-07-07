@@ -5,8 +5,11 @@ import {
   Param,
   Post,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -46,6 +49,13 @@ export class BillsController {
   @Roles(Role.ACCOUNTANT, Role.CFO, Role.CEO)
   create(@Body() dto: CreateBillDto, @CurrentUser() user: AuthenticatedUser) {
     return this.billsService.create(dto, user.userId);
+  }
+
+  @Post('import')
+  @Roles(Role.ACCOUNTANT, Role.CFO, Role.CEO)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  import(@UploadedFile() file: Express.Multer.File, @CurrentUser() user: AuthenticatedUser) {
+    return this.billsService.importExcel(file.buffer, user.userId);
   }
 
   @Post(':id/confirm')

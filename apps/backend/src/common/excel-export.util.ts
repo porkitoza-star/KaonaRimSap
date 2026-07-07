@@ -17,6 +17,12 @@ function sheetToAoa<T>(columns: ExcelColumn<T>[], rows: T[]): (string | number |
   return [headers, ...data];
 }
 
+export function parseExcelRows(buffer: Buffer): Record<string, string | number | undefined>[] {
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(firstSheet, { defval: undefined });
+}
+
 export function buildExcelBuffer<T>(sheetName: string, columns: ExcelColumn<T>[], rows: T[]): Buffer {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return buildMultiSheetExcelBuffer([{ name: sheetName, columns, rows }] as ExcelSheet<any>[]);

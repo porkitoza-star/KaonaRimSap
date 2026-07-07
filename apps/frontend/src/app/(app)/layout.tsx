@@ -14,11 +14,15 @@ const NAV_ITEMS = [
   { href: '/documents', label: 'เอกสาร / OCR' },
   { href: '/payments', label: 'การจ่าย-รับเงิน' },
   { href: '/wht-certificates', label: 'ใบหัก ณ ที่จ่าย' },
+  { href: '/profile', label: 'โปรไฟล์ของฉัน' },
 ];
 
 function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+
+  const navItems =
+    user?.role === 'CEO' ? [...NAV_ITEMS, { href: '/users', label: 'จัดการผู้ใช้งาน' }] : NAV_ITEMS;
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -30,7 +34,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           </p>
         </div>
         <nav className="flex flex-row flex-wrap gap-1 px-2 pb-2 md:flex-col md:pb-4">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

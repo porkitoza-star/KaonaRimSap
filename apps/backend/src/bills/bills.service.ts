@@ -1,11 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { BillStatus } from '@prisma/client';
+import { BillStatus, ContactType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { JournalService } from '../journal/journal.service';
-import { buildExcelBuffer } from '../common/excel-export.util';
+import { buildExcelBuffer, parseExcelRows } from '../common/excel-export.util';
 import { CreateBillDto } from './dto/create-bill.dto';
 import { STANDARD_ACCOUNT_CODES } from '../common/constants';
+
+function parseExcelDate(value: unknown): Date | null {
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = new Date(value.trim());
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+}
 
 function round2(n: number) {
   return Math.round(n * 100) / 100;
@@ -150,6 +159,87 @@ export class BillsService {
       after: updated,
     });
     return updated;
+  }
+
+  async importExcel(buffer: Buffer, userId: string) {
+    const rows = parseExcelRows(buffer);
+    const errors: { row: number; reason: string }[] = [];
+    let createdCount = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2; // header is row 1
+      try {
+        const contactName = String(row['คู่ค้า'] ?? '').trim();
+        const description = String(row['รายละเอียด'] ?? '').trim();
+        const accountCode = String(row['รหัสบัญชี'] ?? '').trim();
+        const costCenterName = String(row['ศูนย์ต้นทุน'] ?? '').trim();
+        const amount = Number(row['จำนวนเงิน']);
+        const issueDate = parseExcelDate(row['วันที่ออก']);
+
+        if (!contactName) throw new Error('ไม่ได้ระบุคู่ค้า');
+        if (!description) throw new Error('ไม่ได้ระบุรายละเอียด');
+        if (!accountCode) throw new Error('ไม่ได้ระบุรหัสบัญชี');
+        if (!costCenterName) throw new Error('ไม่ได้ระบุศูนย์ต้นทุน');
+        if (!amount || amount <= 0) throw new Error('จำนวนเงินต้องมากกว่า 0');
+        if (!issueDate) throw new Error('วันที่ออกไม่ถูกต้อง');
+
+        const dueDate = parseExcelDate(row['ครบกำหนด']) ?? new Date(issueDate.getTime() + 30 * 86400000);
+        const vatAmount = Number(row['VAT'] ?? 0) || 0;
+        const whtAmount = Number(row['หัก ณ ที่จ่าย'] ?? 0) || 0;
+
+        const account = await this.prisma.account.findUnique({ where: { code: accountCode } });
+        if (!account) throw new Error(`ไม่พบรหัสบัญชี "${accountCode}"`);
+
+        const costCenter = await this.prisma.costCenter.findFirst({
+          where: { name: costCenterName },
+        });
+        if (!costCenter) throw new Error(`ไม่พบศูนย์ต้นทุน "${costCenterName}"`);
+
+        let contact = await this.prisma.contact.findFirst({
+          where: { name: { equals: contactName, mode: 'insensitive' } },
+        });
+        if (!contact) {
+          contact = await this.prisma.contact.create({
+            data: { name: contactName, type: ContactType.SUPPLIER },
+          });
+        }
+
+        const number = String(row['เลขที่'] ?? '').trim() || `IMP-${Date.now()}-${rowNum}`;
+        const subtotal = round2(amount);
+        const totalAmount = round2(subtotal + vatAmount);
+
+        const created = await this.prisma.bill.create({
+          data: {
+            number,
+            contactId: contact.id,
+            issueDate,
+            dueDate,
+            subtotal,
+            vatAmount,
+            whtAmount,
+            totalAmount,
+            status: BillStatus.DRAFT,
+            lines: {
+              create: [{ description, amount: subtotal, costCenterId: costCenter.id, accountId: account.id }],
+            },
+          },
+        });
+
+        await this.audit.log({
+          userId,
+          action: 'IMPORT',
+          entityType: 'Bill',
+          entityId: created.id,
+          after: created,
+        });
+        createdCount++;
+      } catch (err) {
+        errors.push({ row: rowNum, reason: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' });
+      }
+    }
+
+    return { createdCount, errors };
   }
 
   async exportExcel() {
