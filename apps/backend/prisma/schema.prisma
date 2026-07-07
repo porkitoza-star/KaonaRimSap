@@ -21,6 +21,12 @@ enum CostCenterType {
   OVERHEAD
 }
 
+enum StockTransactionType {
+  RECEIVE
+  USE
+  ADJUST
+}
+
 enum AccountType {
   ASSET
   LIABILITY
@@ -109,6 +115,7 @@ model User {
   proposedPayments  Payment[]         @relation("PaymentProposedBy")
   approvals         PaymentApproval[]
   auditLogs         AuditLog[]
+  stockTransactions StockTransaction[]
 
   @@map("users")
 }
@@ -128,8 +135,42 @@ model CostCenter {
   invoiceLines      InvoiceLine[]
   billLines         BillLine[]
   documents         Document[]
+  materialItems     MaterialItem[]
 
   @@map("cost_centers")
+}
+
+model MaterialItem {
+  id               String   @id @default(uuid())
+  costCenterId     String
+  costCenter       CostCenter @relation(fields: [costCenterId], references: [id])
+  category         String
+  name             String
+  unit             String
+  plannedQuantity  Decimal  @default(0)
+  reorderThreshold Decimal  @default(0)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  transactions StockTransaction[]
+
+  @@map("material_items")
+}
+
+model StockTransaction {
+  id             String               @id @default(uuid())
+  materialItemId String
+  materialItem   MaterialItem         @relation(fields: [materialItemId], references: [id])
+  type           StockTransactionType
+  quantity       Decimal
+  transactionDate DateTime
+  notes          String?
+  createdById    String
+  createdBy      User                 @relation(fields: [createdById], references: [id])
+  createdAt      DateTime             @default(now())
+
+  @@map("stock_transactions")
 }
 
 model Account {

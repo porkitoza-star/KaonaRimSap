@@ -15,6 +15,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { PaymentsModule } from './payments/payments.module';
 import { WhtCertificatesModule } from './wht/wht-certificates.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { MaterialsModule } from './materials/materials.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     PaymentsModule,
     WhtCertificatesModule,
     DashboardModule,
+    MaterialsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
