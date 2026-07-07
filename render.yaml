@@ -2,7 +2,7 @@ services:
   - type: web
     name: kaonaa-erp-backend
     runtime: node
-    plan: starter
+    plan: free
     region: singapore
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter backend prisma:generate && pnpm --filter backend build
     startCommand: pnpm --filter backend prisma:deploy && pnpm --filter backend start
@@ -22,16 +22,12 @@ services:
       - key: CEO_APPROVAL_THRESHOLD_THB
         value: "50000"
       - key: DOCUMENTS_STORAGE_PATH
-        value: /var/data/uploads
-    disk:
-      name: kaonaa-erp-uploads
-      mountPath: /var/data
-      sizeGB: 1
+        value: ./uploads
 
   - type: web
     name: kaonaa-erp-frontend
     runtime: node
-    plan: starter
+    plan: free
     region: singapore
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter frontend build
     startCommand: pnpm --filter frontend start
@@ -43,5 +39,5 @@ services:
 
 databases:
   - name: kaonaa-erp-db
-    plan: starter
+    plan: free
     region: singapore
