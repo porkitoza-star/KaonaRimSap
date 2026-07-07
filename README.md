@@ -95,12 +95,13 @@ render.yaml       Render Blueprint สำหรับ deploy backend + frontend 
 | ตัวแปร | คำอธิบาย | บังคับ |
 |---|---|---|
 | `DATABASE_URL` | connection string ของ PostgreSQL | ใช่ |
-| `JWT_SECRET` | secret สำหรับเซ็น JWT (สุ่มค่ายาว ๆ) | ใช่ |
+| `JWT_SECRET` | secret สำหรับเซ็น JWT (สุ่มค่ายาว ๆ) — **ระบบจะไม่ยอมสตาร์ทถ้าไม่ตั้งค่านี้** | ใช่ |
 | `ANTHROPIC_API_KEY` | API key ของ Anthropic สำหรับ OCR (Claude Vision) | ไม่ (ถ้าไม่ตั้งค่า อัปโหลดเอกสารยังทำได้ แต่จะไม่มีการอ่านค่าอัตโนมัติ ต้องกรอกเองตอนตรวจสอบ) |
 | `CLAUDE_OCR_MODEL` | ชื่อโมเดลที่ใช้อ่าน OCR | ไม่ (ค่าเริ่มต้น `claude-sonnet-5`) |
 | `PORT` | พอร์ตที่ backend รัน | ไม่ (ค่าเริ่มต้น 3001; บน Render จะถูก override โดยอัตโนมัติ) |
 | `CEO_APPROVAL_THRESHOLD_THB` | วงเงินจ่ายที่เกินแล้วต้องให้ CEO อนุมัติซ้ำ | ไม่ (ค่าเริ่มต้น 50,000) |
 | `DOCUMENTS_STORAGE_PATH` | โฟลเดอร์เก็บไฟล์เอกสารที่อัปโหลด | ไม่ (ค่าเริ่มต้น `./uploads`) |
+| `FRONTEND_URL` | URL ของ frontend ที่อนุญาตให้เรียก API ข้าม origin ได้ (CORS) | ไม่ (ถ้าไม่ตั้งค่าจะอนุญาตทุก origin — ควรตั้งค่าเมื่อ deploy จริง) |
 
 ### Frontend (`apps/frontend/.env.local`)
 
