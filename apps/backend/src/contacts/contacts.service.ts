@@ -1,0 +1,81 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { ContactType } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { buildExcelBuffer } from '../common/excel-export.util';
+import { CreateContactDto } from './dto/create-contact.dto';
+import { UpdateContactDto } from './dto/update-contact.dto';
+
+@Injectable()
+export class ContactsService {
+  constructor(
+    private prisma: PrismaService,
+    private audit: AuditService,
+  ) {}
+
+  findAll() {
+    return this.prisma.contact.findMany({ orderBy: { name: 'asc' } });
+  }
+
+  async findOne(id: string) {
+    const contact = await this.prisma.contact.findUnique({ where: { id } });
+    if (!contact) {
+      throw new NotFoundException('ไม่พบคู่ค้ารายนี้');
+    }
+    return contact;
+  }
+
+  async create(dto: CreateContactDto, userId: string) {
+    const created = await this.prisma.contact.create({ data: dto });
+    await this.audit.log({
+      userId,
+      action: 'CREATE',
+      entityType: 'Contact',
+      entityId: created.id,
+      after: created,
+    });
+    return created;
+  }
+
+  async findOrCreateSupplier(name: string, taxId?: string) {
+    if (taxId) {
+      const existing = await this.prisma.contact.findFirst({ where: { taxId } });
+      if (existing) {
+        return existing;
+      }
+    }
+    return this.prisma.contact.create({
+      data: { name, type: ContactType.SUPPLIER, taxId },
+    });
+  }
+
+  async update(id: string, dto: UpdateContactDto, userId: string) {
+    const before = await this.findOne(id);
+    const updated = await this.prisma.contact.update({ where: { id }, data: dto });
+    await this.audit.log({
+      userId,
+      action: 'UPDATE',
+      entityType: 'Contact',
+      entityId: id,
+      before,
+      after: updated,
+    });
+    return updated;
+  }
+
+  async exportExcel() {
+    const contacts = await this.prisma.contact.findMany({ orderBy: { name: 'asc' } });
+    return buildExcelBuffer(
+      'Contacts',
+      [
+        { header: 'ชื่อ', value: (r: (typeof contacts)[number]) => r.name },
+        { header: 'ประเภท', value: (r: (typeof contacts)[number]) => r.type },
+        { header: 'เลขผู้เสียภาษี', value: (r: (typeof contacts)[number]) => r.taxId ?? '' },
+        { header: 'โทรศัพท์', value: (r: (typeof contacts)[number]) => r.phone ?? '' },
+        { header: 'อีเมล', value: (r: (typeof contacts)[number]) => r.email ?? '' },
+        { header: 'ที่อยู่', value: (r: (typeof contacts)[number]) => r.address ?? '' },
+      ],
+      contacts,
+    );
+  }
+}
