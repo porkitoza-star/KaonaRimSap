@@ -112,7 +112,7 @@ render.yaml       Render Blueprint สำหรับ deploy backend + frontend 
 
 โปรเจกต์นี้มี [`render.yaml`](./render.yaml) เป็น Blueprint พร้อมใช้งาน ประกอบด้วย:
 
-- **kaonaa-erp-backend** — Web Service (NestJS) พร้อม Persistent Disk สำหรับเก็บไฟล์เอกสารที่อัปโหลด
+- **kaonaa-erp-backend** — Web Service (NestJS)
 - **kaonaa-erp-frontend** — Web Service (Next.js)
 - **kaonaa-erp-db** — Render Postgres
 
@@ -138,8 +138,7 @@ render.yaml       Render Blueprint สำหรับ deploy backend + frontend 
 
 ### หมายเหตุสำคัญ
 
-- ไฟล์เอกสารที่อัปโหลดเก็บบน Persistent Disk ของ Render (path `/var/data/uploads`) — ขนาดเริ่มต้น 1GB ปรับเพิ่มได้ที่ dashboard เมื่อใกล้เต็ม
-- `render.yaml` ตั้ง plan เป็น `starter` ทั้งหมด (มีค่าใช้จ่าย) — เปลี่ยนเป็น `free` ได้ถ้าต้องการทดสอบก่อน แต่ free plan ของ Render จะ sleep เมื่อไม่มีการใช้งานและไม่รองรับ Persistent Disk
+- `render.yaml` ตั้ง plan เป็น `free` ทั้งหมด (ไม่ต้องผูกบัตรเครดิต) — free plan จะ sleep เมื่อไม่มีการใช้งานสักพัก (โหลดครั้งแรกหลัง sleep จะช้าประมาณ 30-60 วินาที) และไม่รองรับ Persistent Disk ทำให้ไฟล์เอกสารที่อัปโหลดเก็บไว้ในดิสก์ชั่วคราวของ container เท่านั้น (อาจหายเมื่อ redeploy/restart) — เหมาะสำหรับทดสอบใช้งานก่อน เมื่อพร้อมใช้งานจริงแนะนำอัปเกรดเป็น `starter` และเพิ่ม disk กลับเข้าไปใน `render.yaml`
 - `JWT_SECRET` ถูกสุ่มให้อัตโนมัติโดย Render (`generateValue: true`) ไม่ต้องตั้งเอง
 
 ## ขอบเขตที่ยังไม่ทำ (นอก Phase 0-1)
