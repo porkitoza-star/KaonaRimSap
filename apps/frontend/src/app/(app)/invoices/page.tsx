@@ -8,6 +8,7 @@ import { formatThb, formatDate } from '@/lib/format';
 import { card, input, label, primaryButton, secondaryButton, errorBanner } from '@/lib/ui';
 import { StatusBadge } from '@/components/status-badge';
 import { ExportButton } from '@/components/export-button';
+import { ImportButton } from '@/components/import-button';
 
 interface LineDraft {
   description: string;
@@ -127,8 +128,20 @@ export default function InvoicesPage() {
         <div>
           <h1 className="text-xl font-semibold text-gray-900">ใบแจ้งหนี้ (AR)</h1>
           <p className="text-sm text-gray-500">ออกใบแจ้งหนี้ให้ลูกค้าและติดตามการรับชำระ</p>
+          {canManage && (
+            <p className="mt-1 text-xs text-gray-400">
+              นำเข้า Excel ต้องมีคอลัมน์: เลขที่ (เว้นว่างได้), ลูกค้า, วันที่ออก, ครบกำหนด (เว้นว่างได้),
+              รายละเอียด, จำนวนเงิน, รหัสบัญชี (เช่น 4010), ศูนย์ต้นทุน (ชื่อต้องตรงกับที่มีในระบบ) —
+              1 แถว = 1 ใบแจ้งหนี้ (รายการเดียว, VAT คำนวณอัตโนมัติ)
+            </p>
+          )}
         </div>
-        <ExportButton path="/invoices/export" filename="invoices.xlsx" onError={setError} />
+        <div className="flex flex-wrap items-start gap-2">
+          <ExportButton path="/invoices/export" filename="invoices.xlsx" onError={setError} />
+          {canManage && (
+            <ImportButton path="/invoices/import" onImported={reload} onError={setError} />
+          )}
+        </div>
       </div>
 
       {error && <p className={errorBanner}>{error}</p>}

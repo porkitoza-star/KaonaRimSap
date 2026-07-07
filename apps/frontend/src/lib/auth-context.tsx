@@ -11,6 +11,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: Role;
+  avatarUrl?: string | null;
 }
 
 interface AuthContextValue {
@@ -18,6 +19,8 @@ interface AuthContextValue {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  updateUser: (user: AuthUser) => void;
   logout: () => void;
 }
 
@@ -39,15 +42,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
+  function persistSession(result: { accessToken: string; user: AuthUser }) {
+    localStorage.setItem('kaonaa_token', result.accessToken);
+    localStorage.setItem('kaonaa_user', JSON.stringify(result.user));
+    setToken(result.accessToken);
+    setUser(result.user);
+  }
+
   async function login(email: string, password: string) {
     const result = await api.post<{ accessToken: string; user: AuthUser }>('/auth/login', {
       email,
       password,
     });
-    localStorage.setItem('kaonaa_token', result.accessToken);
-    localStorage.setItem('kaonaa_user', JSON.stringify(result.user));
-    setToken(result.accessToken);
-    setUser(result.user);
+    persistSession(result);
+  }
+
+  async function register(name: string, email: string, password: string) {
+    const result = await api.post<{ accessToken: string; user: AuthUser }>('/auth/register', {
+      name,
+      email,
+      password,
+    });
+    persistSession(result);
+  }
+
+  function updateUser(nextUser: AuthUser) {
+    localStorage.setItem('kaonaa_user', JSON.stringify(nextUser));
+    setUser(nextUser);
   }
 
   function logout() {
@@ -59,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

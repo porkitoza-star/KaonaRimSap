@@ -19,6 +19,17 @@ export type PaymentStatus =
   | 'REJECTED'
   | 'COMPLETED';
 export type PaymentDirection = 'PAY' | 'RECEIVE';
+export type Role = 'CEO' | 'CFO' | 'ACCOUNTANT' | 'PROJECT_MANAGER' | 'VIEWER';
+
+export interface UserRecord {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  avatarUrl: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
 
 export interface CostCenter {
   id: string;
