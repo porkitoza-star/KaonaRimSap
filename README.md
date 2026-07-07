@@ -18,7 +18,7 @@
 apps/backend/    NestJS + Prisma + PostgreSQL (REST API)
 apps/frontend/   Next.js (App Router) + Tailwind CSS — PWA
 packages/        ที่ว่างไว้สำหรับ shared types ในอนาคต
-render.yaml       Render Blueprint สำหรับ deploy backend + frontend + Postgres
+render.yaml       Render Blueprint สำหรับ deploy backend (frontend deploy บน Vercel, database บน Neon)
 ```
 
 ## เทคโนโลยีที่ใช้
@@ -31,7 +31,7 @@ render.yaml       Render Blueprint สำหรับ deploy backend + frontend 
 | Auth | JWT + bcrypt (RBAC in-house) |
 | OCR/AI | Anthropic Claude API (vision) |
 | File Storage | Local disk / Render Persistent Disk (ออกแบบให้ย้ายไป Cloudflare R2 ได้ในอนาคต) |
-| Deploy | Render (Web Service backend + frontend, Render Postgres) |
+| Deploy | Vercel (frontend) + Render (backend) + Neon (Postgres) — ทุกส่วนใช้ free tier ได้ |
 
 ## เริ่มต้นใช้งานบนเครื่อง (Local Development)
 
@@ -109,38 +109,60 @@ render.yaml       Render Blueprint สำหรับ deploy backend + frontend 
 |---|---|
 | `NEXT_PUBLIC_API_URL` | URL ของ backend API (รวม `/api`) |
 
-## Deploy ขึ้น Render
+## Deploy ขึ้นจริง (Vercel + Render + Neon — ฟรีทั้งหมด ไม่ผูกบัตร)
 
-โปรเจกต์นี้มี [`render.yaml`](./render.yaml) เป็น Blueprint พร้อมใช้งาน ประกอบด้วย:
+เพราะโควต้าฟรีของ Render อย่างเดียวไม่พอ (750 ชม./เดือน ใช้ร่วมกันทุก service + Postgres ฟรีหมดอายุใน 30 วัน) จึงแยกงานเป็น 3 ที่ ซึ่งแต่ละที่ฟรีแบบไม่มีวันหมดอายุ:
 
-- **kaonaa-erp-backend** — Web Service (NestJS)
-- **kaonaa-erp-frontend** — Web Service (Next.js)
-- **kaonaa-erp-db** — Render Postgres
+- **Neon** — ฐานข้อมูล Postgres
+- **Render** — backend (NestJS) เท่านั้น ([`render.yaml`](./render.yaml))
+- **Vercel** — frontend (Next.js)
 
-### ขั้นตอน Deploy
+### 1) สร้างฐานข้อมูลบน Neon
 
-1. Push โค้ดขึ้น GitHub (ทำแล้วในรอบนี้)
-2. เข้า [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**
-3. เลือก repository นี้ Render จะอ่าน `render.yaml` และแสดงรายการ services ทั้งหมดให้ยืนยัน
-4. กด **Apply** — Render จะสร้าง Postgres, backend, และ frontend ให้อัตโนมัติ
-5. **ตั้งค่า environment variable ที่ต้องกรอกเอง** (Render จะรอค่านี้ก่อนเริ่ม deploy backend):
-   - เข้าไปที่ service `kaonaa-erp-backend` → **Environment** → ใส่ `ANTHROPIC_API_KEY` (ขอ API key ได้จาก https://console.anthropic.com)
-6. รอ build เสร็จ (backend จะรัน `prisma migrate deploy` อัตโนมัติทุกครั้งที่ deploy)
-7. **Seed ข้อมูลเริ่มต้นครั้งแรก** — เข้า service `kaonaa-erp-backend` → แท็บ **Shell** แล้วรัน:
+1. สมัคร/ล็อกอิน https://neon.tech (ฟรี ไม่ต้องผูกบัตร)
+2. สร้าง Project ใหม่ ตั้งชื่อ เช่น `kaonaa-erp`
+3. ในหน้า Dashboard ของ project กด **Connection Details** แล้วคัดลอก connection string ที่ขึ้นต้นด้วย `postgresql://...` (เลือกแบบ "Pooled connection")
+4. เก็บค่านี้ไว้ — จะใช้เป็น `DATABASE_URL` ในขั้นตอนถัดไป
+
+### 2) Deploy backend บน Render
+
+1. เข้า [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**
+2. เลือก repository `KaonaRimSap` (branch `main`) — Render จะอ่าน `render.yaml` และเจอ service เดียวคือ `kaonaa-erp-backend`
+3. กด **Apply**
+4. Render จะรอให้กรอก environment variable ที่ทำเครื่องหมาย `sync: false` ไว้ — เข้าไปที่ service `kaonaa-erp-backend` → **Environment** แล้วใส่:
+   - `DATABASE_URL` = connection string จาก Neon ที่คัดลอกไว้
+   - `ANTHROPIC_API_KEY` = API key จาก https://console.anthropic.com (ถ้ายังไม่มี ข้ามได้ก่อน แค่ OCR จะไม่ทำงาน)
+   - `FRONTEND_URL` = ใส่ URL ของ Vercel (ทำขั้นตอนที่ 3 ก่อนแล้วค่อยกลับมาใส่ค่านี้ก็ได้)
+5. รอ build เสร็จ (จะรัน `prisma migrate deploy` อัตโนมัติ)
+6. **Seed ข้อมูลเริ่มต้นครั้งแรก** — เข้าแท็บ **Shell** ของ service แล้วรัน:
 
    ```bash
    pnpm --filter backend prisma:seed
    ```
 
-   (สร้างผังบัญชีมาตรฐาน + user CEO/CFO ตัวอย่าง เหมือนตอน local — **เปลี่ยนรหัสผ่านทันที**)
+   (สร้างผังบัญชีมาตรฐาน + user CEO/CFO ตัวอย่าง — **เปลี่ยนรหัสผ่านทันทีหลังใช้งานจริง**)
 
-8. ตรวจสอบว่า frontend เรียก backend ถูก URL — ค่าเริ่มต้นใน `render.yaml` อ้างอิงชื่อ service `kaonaa-erp-backend.onrender.com`; ถ้าเปลี่ยนชื่อ service หรือใช้ custom domain ต้องแก้ `NEXT_PUBLIC_API_URL` ใน service `kaonaa-erp-frontend` → **Environment** แล้ว deploy frontend ใหม่ (ค่านี้ถูก build เข้าไปใน bundle ตอน build time)
-9. เข้าใช้งานผ่าน URL ของ `kaonaa-erp-frontend` ที่ Render สร้างให้
+7. จด URL ของ backend ไว้ (รูปแบบ `https://kaonaa-erp-backend.onrender.com`) — ใช้ในขั้นตอนถัดไป
+
+### 3) Deploy frontend บน Vercel
+
+1. สมัคร/ล็อกอิน https://vercel.com ด้วยบัญชี GitHub เดียวกัน (ฟรี ไม่ต้องผูกบัตร)
+2. **Add New** → **Project** → เลือก repository `KaonaRimSap`
+3. ในหน้าตั้งค่าก่อน deploy: กด **Edit** ที่ **Root Directory** แล้วเลือก `apps/frontend` (Vercel จะตรวจพบว่าเป็น Next.js อัตโนมัติ)
+4. เปิด **Environment Variables** เพิ่ม:
+   - `NEXT_PUBLIC_API_URL` = URL ของ backend จาก Render ต่อท้ายด้วย `/api` เช่น `https://kaonaa-erp-backend.onrender.com/api`
+5. กด **Deploy**
+6. เมื่อเสร็จ Vercel จะให้ URL มา (เช่น `https://kaonarimsap.vercel.app`) — นำ URL นี้กลับไปใส่เป็นค่า `FRONTEND_URL` ในขั้นตอนที่ 2 ของฝั่ง Render (ถ้ายังไม่ได้ใส่) แล้วกด **Manual Deploy** ที่ Render อีกครั้งเพื่อให้ CORS อนุญาต origin นี้
+
+### 4) เข้าใช้งาน
+
+เปิด URL ของ Vercel จากมือถือหรือคอมพิวเตอร์ แล้ว login ด้วยบัญชีตัวอย่าง (`ceo@kaonaa.co.th` / `ChangeMe123!`) — บนมือถือกด "เพิ่มลงหน้าจอโฮม" (Add to Home Screen) เพื่อใช้งานแบบแอปได้เลยเพราะเป็น PWA
 
 ### หมายเหตุสำคัญ
 
-- `render.yaml` ตั้ง plan เป็น `free` ทั้งหมด (ไม่ต้องผูกบัตรเครดิต) — free plan จะ sleep เมื่อไม่มีการใช้งานสักพัก (โหลดครั้งแรกหลัง sleep จะช้าประมาณ 30-60 วินาที) และไม่รองรับ Persistent Disk ทำให้ไฟล์เอกสารที่อัปโหลดเก็บไว้ในดิสก์ชั่วคราวของ container เท่านั้น (อาจหายเมื่อ redeploy/restart) — เหมาะสำหรับทดสอบใช้งานก่อน เมื่อพร้อมใช้งานจริงแนะนำอัปเกรดเป็น `starter` และเพิ่ม disk กลับเข้าไปใน `render.yaml`
+- Render free plan จะ sleep เมื่อไม่มีการใช้งานสักพัก (โหลดครั้งแรกหลัง sleep จะช้าประมาณ 30-60 วินาที) และไม่รองรับ Persistent Disk ทำให้ไฟล์เอกสารที่อัปโหลดเก็บไว้ในดิสก์ชั่วคราวของ container เท่านั้น (อาจหายเมื่อ redeploy/restart) — เหมาะสำหรับทดสอบใช้งานก่อน เมื่อพร้อมใช้งานจริงแนะนำอัปเกรดเป็น `starter` plan
 - `JWT_SECRET` ถูกสุ่มให้อัตโนมัติโดย Render (`generateValue: true`) ไม่ต้องตั้งเอง
+- Neon free tier ไม่มีวันหมดอายุ แต่มี storage จำกัด (0.5GB) และ compute จะ auto-suspend เมื่อไม่มีการใช้งาน (จะปลุกอัตโนมัติเมื่อมี request เข้ามา อาจช้าสักครู่ในการเชื่อมต่อครั้งแรก)
 
 ## ขอบเขตที่ยังไม่ทำ (นอก Phase 0-1)
 
