@@ -23,8 +23,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="w-full shrink-0 border-b border-gray-200 bg-white md:w-56 md:border-b-0 md:border-r">
-        <div className="px-4 py-4">
-          <p className="text-sm font-semibold text-[#123458]">ก้าวหน้า อสังหาริมทรัพย์</p>
+        <div className="border-b-2 border-[#B8860B] px-4 py-4">
+          <p className="text-sm font-semibold text-[#1B5E3A]">ก้าวหน้า อสังหาริมทรัพย์</p>
           <p className="text-xs text-gray-500">
             {user?.name} ({user?.role})
           </p>
@@ -36,8 +36,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
               href={item.href}
               className={`rounded-lg px-3 py-2 text-sm ${
                 pathname.startsWith(item.href)
-                  ? 'bg-[#123458] text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'border-l-4 border-[#B8860B] bg-[#1B5E3A] text-white'
+                  : 'border-l-4 border-transparent text-gray-700 hover:bg-gray-100'
               }`}
             >
               {item.label}

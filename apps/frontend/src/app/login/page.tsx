@@ -29,8 +29,8 @@ export default function LoginPage() {
 
   return (
     <div className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-100">
-        <h1 className="text-center text-xl font-semibold text-gray-900">
+      <div className="w-full max-w-sm rounded-2xl border-t-4 border-[#B8860B] bg-white p-8 shadow-sm ring-1 ring-gray-100">
+        <h1 className="text-center text-xl font-semibold text-[#1B5E3A]">
           ระบบ ERP ก้าวหน้า อสังหาริมทรัพย์
         </h1>
         <p className="mt-1 text-center text-sm text-gray-500">เข้าสู่ระบบเพื่อดำเนินการต่อ</p>
@@ -46,7 +46,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#123458] focus:outline-none focus:ring-1 focus:ring-[#123458]"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#1B5E3A] focus:outline-none focus:ring-1 focus:ring-[#1B5E3A]"
               placeholder="you@kaonaa.co.th"
             />
           </div>
@@ -61,7 +61,7 @@ export default function LoginPage() {
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#123458] focus:outline-none focus:ring-1 focus:ring-[#123458]"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#1B5E3A] focus:outline-none focus:ring-1 focus:ring-[#1B5E3A]"
               placeholder="••••••••"
             />
           </div>
@@ -71,7 +71,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-lg bg-[#123458] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#0d2740] disabled:opacity-60"
+            className="w-full rounded-lg bg-[#1B5E3A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#154a2e] disabled:opacity-60"
           >
             {submitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
           </button>

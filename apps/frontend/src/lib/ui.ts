@@ -1,9 +1,11 @@
 export const card = 'rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100';
 export const input =
-  'mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#123458] focus:outline-none focus:ring-1 focus:ring-[#123458]';
+  'mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#1B5E3A] focus:outline-none focus:ring-1 focus:ring-[#1B5E3A]';
 export const label = 'block text-sm font-medium text-gray-700';
 export const primaryButton =
-  'rounded-lg bg-[#123458] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#0d2740] disabled:opacity-60';
+  'rounded-lg bg-[#1B5E3A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#154a2e] disabled:opacity-60';
+export const goldAccentButton =
+  'rounded-lg bg-[#B8860B] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#9a7009] disabled:opacity-60';
 export const secondaryButton =
   'rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60';
 export const dangerButton =
