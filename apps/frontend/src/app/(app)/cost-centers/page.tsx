@@ -4,7 +4,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api, ApiError } from '@/lib/api';
 import type { Account, AccountType, CostCenter, CostCenterType } from '@/lib/types';
-import { card, input, label, primaryButton, errorBanner } from '@/lib/ui';
+import { downloadExport } from '@/lib/download';
+import { card, input, label, primaryButton, secondaryButton, errorBanner } from '@/lib/ui';
 
 const COST_CENTER_TYPES: CostCenterType[] = ['PROJECT', 'HOUSE', 'OVERHEAD'];
 const ACCOUNT_TYPES: AccountType[] = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'];
@@ -26,6 +27,32 @@ export default function CostCentersPage() {
   const [accName, setAccName] = useState('');
   const [accType, setAccType] = useState<AccountType>('EXPENSE');
   const [accSubmitting, setAccSubmitting] = useState(false);
+  const [exportingCc, setExportingCc] = useState(false);
+  const [exportingAcc, setExportingAcc] = useState(false);
+
+  async function handleExportCostCenters() {
+    if (!token) return;
+    setExportingCc(true);
+    try {
+      await downloadExport('/cost-centers/export', token, 'cost-centers.xlsx');
+    } catch {
+      setError('ส่งออกไฟล์ Excel ไม่สำเร็จ');
+    } finally {
+      setExportingCc(false);
+    }
+  }
+
+  async function handleExportAccounts() {
+    if (!token) return;
+    setExportingAcc(true);
+    try {
+      await downloadExport('/chart-of-accounts/export', token, 'chart-of-accounts.xlsx');
+    } catch {
+      setError('ส่งออกไฟล์ Excel ไม่สำเร็จ');
+    } finally {
+      setExportingAcc(false);
+    }
+  }
 
   async function reload() {
     if (!token) return;
@@ -95,7 +122,12 @@ export default function CostCentersPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className={card}>
-          <h2 className="text-sm font-semibold text-gray-900">Cost Center (โครงการ / บ้าน / ส่วนกลาง)</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-gray-900">Cost Center (โครงการ / บ้าน / ส่วนกลาง)</h2>
+            <button onClick={handleExportCostCenters} disabled={exportingCc} className={`${secondaryButton} px-3 py-1 text-xs`}>
+              {exportingCc ? '...' : 'ส่งออก Excel'}
+            </button>
+          </div>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
@@ -155,7 +187,12 @@ export default function CostCentersPage() {
         </div>
 
         <div className={card}>
-          <h2 className="text-sm font-semibold text-gray-900">ผังบัญชี (Chart of Accounts)</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-gray-900">ผังบัญชี (Chart of Accounts)</h2>
+            <button onClick={handleExportAccounts} disabled={exportingAcc} className={`${secondaryButton} px-3 py-1 text-xs`}>
+              {exportingAcc ? '...' : 'ส่งออก Excel'}
+            </button>
+          </div>
           <div className="mt-4 max-h-96 overflow-y-auto">
             <table className="w-full text-left text-sm">
               <thead>

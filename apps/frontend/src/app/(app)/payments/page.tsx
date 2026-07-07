@@ -7,6 +7,7 @@ import type { Bill, Invoice, Payment } from '@/lib/types';
 import { formatThb } from '@/lib/format';
 import { card, input, label, primaryButton, secondaryButton, dangerButton, errorBanner } from '@/lib/ui';
 import { StatusBadge } from '@/components/status-badge';
+import { ExportButton } from '@/components/export-button';
 
 interface AllocationDraft {
   refId: string;
@@ -128,11 +129,14 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">การจ่าย-รับเงิน</h1>
-        <p className="text-sm text-gray-500">
-          จ่ายเงินต้องผ่านการอนุมัติจาก CFO เสมอ และ CEO เพิ่มเติมหากยอดเกินวงเงินที่กำหนด
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">การจ่าย-รับเงิน</h1>
+          <p className="text-sm text-gray-500">
+            จ่ายเงินต้องผ่านการอนุมัติจาก CFO เสมอ และ CEO เพิ่มเติมหากยอดเกินวงเงินที่กำหนด
+          </p>
+        </div>
+        <ExportButton path="/payments/export" filename="payments.xlsx" onError={setError} />
       </div>
 
       {error && <p className={errorBanner}>{error}</p>}

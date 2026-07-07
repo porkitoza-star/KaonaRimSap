@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { api, ApiError } from '@/lib/api';
 import type { Contact, ContactType } from '@/lib/types';
 import { card, input, label, primaryButton, errorBanner } from '@/lib/ui';
+import { ExportButton } from '@/components/export-button';
 
 const CONTACT_TYPES: ContactType[] = ['CUSTOMER', 'SUPPLIER', 'CONTRACTOR', 'BOTH'];
 
@@ -61,9 +62,12 @@ export default function ContactsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">คู่ค้า</h1>
-        <p className="text-sm text-gray-500">ลูกค้า ผู้รับเหมา และซัพพลายเออร์</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">คู่ค้า</h1>
+          <p className="text-sm text-gray-500">ลูกค้า ผู้รับเหมา และซัพพลายเออร์</p>
+        </div>
+        <ExportButton path="/contacts/export" filename="contacts.xlsx" onError={setError} />
       </div>
 
       {error && <p className={errorBanner}>{error}</p>}

@@ -7,6 +7,7 @@ import type { Account, Bill, Contact, CostCenter } from '@/lib/types';
 import { formatThb, formatDate } from '@/lib/format';
 import { card, input, label, primaryButton, secondaryButton, errorBanner } from '@/lib/ui';
 import { StatusBadge } from '@/components/status-badge';
+import { ExportButton } from '@/components/export-button';
 
 interface LineDraft {
   description: string;
@@ -128,9 +129,12 @@ export default function BillsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">บิล (AP)</h1>
-        <p className="text-sm text-gray-500">บันทึกบิลจากผู้รับเหมาและซัพพลายเออร์</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">บิล (AP)</h1>
+          <p className="text-sm text-gray-500">บันทึกบิลจากผู้รับเหมาและซัพพลายเออร์</p>
+        </div>
+        <ExportButton path="/bills/export" filename="bills.xlsx" onError={setError} />
       </div>
 
       {error && <p className={errorBanner}>{error}</p>}

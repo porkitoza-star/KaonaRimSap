@@ -5,10 +5,10 @@ import { useAuth } from '@/lib/auth-context';
 import { api, ApiError } from '@/lib/api';
 import type { Bill, WhtCertificate } from '@/lib/types';
 import { formatThb, formatDate } from '@/lib/format';
+import { downloadExport } from '@/lib/download';
 import { card, input, label, primaryButton, secondaryButton, errorBanner } from '@/lib/ui';
 
 const CERT_TYPES: WhtCertificate['certType'][] = ['PND3', 'PND53'];
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
 
 export default function WhtCertificatesPage() {
   const { token, user } = useAuth();
@@ -81,19 +81,9 @@ export default function WhtCertificatesPage() {
     setExporting(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/wht-certificates/export`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('ส่งออกไม่สำเร็จ');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'wht-certificates.csv';
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadExport('/wht-certificates/export', token, 'wht-certificates.xlsx');
     } catch {
-      setError('ส่งออกไฟล์ CSV ไม่สำเร็จ');
+      setError('ส่งออกไฟล์ Excel ไม่สำเร็จ');
     } finally {
       setExporting(false);
     }
@@ -107,7 +97,7 @@ export default function WhtCertificatesPage() {
           <p className="text-sm text-gray-500">ออกใบหัก ณ ที่จ่าย และส่งออกไฟล์สำหรับยื่นสรรพากร</p>
         </div>
         <button onClick={handleExport} disabled={exporting} className={secondaryButton}>
-          {exporting ? 'กำลังส่งออก...' : 'ส่งออก CSV'}
+          {exporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}
         </button>
       </div>
 

@@ -4,6 +4,14 @@ export type ContactType = 'CUSTOMER' | 'SUPPLIER' | 'CONTRACTOR' | 'BOTH';
 export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'VOID';
 export type BillStatus = 'DRAFT' | 'CONFIRMED' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'VOID';
 export type DocumentStatus = 'PENDING_REVIEW' | 'CONFIRMED' | 'REJECTED';
+export type DocumentCategory =
+  | 'BILL'
+  | 'BOQ'
+  | 'PERMIT'
+  | 'BLUEPRINT'
+  | 'PURCHASE_ORDER'
+  | 'PHOTO'
+  | 'OTHER';
 export type PaymentStatus =
   | 'PENDING_CFO_APPROVAL'
   | 'PENDING_CEO_APPROVAL'
@@ -88,6 +96,7 @@ export interface DocumentRecord {
   id: string;
   fileUrl: string;
   fileType: string;
+  category: DocumentCategory;
   ocrRawJson: {
     documentNumber?: string;
     issueDate?: string;
