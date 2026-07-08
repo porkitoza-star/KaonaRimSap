@@ -20,6 +20,7 @@ import { MaterialsModule } from './materials/materials.module';
 import { ConstructionPhasesModule } from './construction-phases/construction-phases.module';
 import { FeasibilityModule } from './feasibility/feasibility.module';
 import { PaymentMilestonesModule } from './payment-milestones/payment-milestones.module';
+import { BoqTemplatesModule } from './boq-templates/boq-templates.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PaymentMilestonesModule } from './payment-milestones/payment-milestones
     ConstructionPhasesModule,
     FeasibilityModule,
     PaymentMilestonesModule,
+    BoqTemplatesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
