@@ -151,6 +151,41 @@ export class DashboardService {
     }));
   }
 
+  async getPendingConstructionMilestones() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const soon = new Date(today.getTime() + 30 * 86_400_000);
+
+    const milestones = await this.prisma.paymentMilestone.findMany({
+      where: { actualPaidDate: null },
+      include: { costCenter: true },
+      orderBy: { plannedDate: 'asc' },
+    });
+
+    const items = milestones.map((m) => ({
+      id: m.id,
+      costCenterId: m.costCenterId,
+      costCenterName: m.costCenter.name,
+      name: m.name,
+      amount: Number(m.amount),
+      plannedDate: m.plannedDate,
+      isOverdue: m.plannedDate !== null && m.plannedDate < today,
+      isDueSoon: m.plannedDate !== null && m.plannedDate >= today && m.plannedDate <= soon,
+    }));
+
+    const overdue = items.filter((i) => i.isOverdue);
+    const dueSoon = items.filter((i) => i.isDueSoon);
+
+    return {
+      asOf: today,
+      totalPending: round2(items.reduce((sum, i) => sum + i.amount, 0)),
+      totalOverdue: round2(overdue.reduce((sum, i) => sum + i.amount, 0)),
+      totalDueSoon: round2(dueSoon.reduce((sum, i) => sum + i.amount, 0)),
+      overdue,
+      dueSoon,
+    };
+  }
+
   async getCashFlowForecast(days = 90) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
