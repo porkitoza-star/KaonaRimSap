@@ -8,10 +8,13 @@ import type {
   ConstructionPhasesResponse,
   CostCenter,
   HouseTemplateType,
+  PaymentMilestone,
+  PaymentMilestonesResponse,
   ProjectFeasibility,
+  ValueCurvePoint,
 } from '@/lib/types';
 import { formatDate, formatThb } from '@/lib/format';
-import { card, input, label, primaryButton, secondaryButton, errorBanner } from '@/lib/ui';
+import { badge, card, input, label, primaryButton, secondaryButton, errorBanner } from '@/lib/ui';
 
 function toDateInput(value: string | null): string {
   return value ? value.slice(0, 10) : '';
@@ -50,6 +53,103 @@ function PhaseTimelineBar({ phase, rangeStart, rangeEnd }: { phase: Construction
   );
 }
 
+function formatMonth(key: string): string {
+  const [y, m] = key.split('-').map(Number);
+  return new Intl.DateTimeFormat('th-TH', { month: 'short', year: '2-digit' }).format(new Date(y, m - 1, 1));
+}
+
+function valueAtMonth(curve: ValueCurvePoint[], month: string): number {
+  let val = 0;
+  for (const p of curve) {
+    if (p.month <= month) val = p.cumulativePercent;
+    else break;
+  }
+  return val;
+}
+
+function SCurveChart({
+  monthlyPlan,
+  monthlyActual,
+}: {
+  monthlyPlan: ValueCurvePoint[];
+  monthlyActual: ValueCurvePoint[];
+}) {
+  const months = useMemo(
+    () => Array.from(new Set([...monthlyPlan.map((p) => p.month), ...monthlyActual.map((p) => p.month)])).sort(),
+    [monthlyPlan, monthlyActual],
+  );
+
+  if (months.length === 0) {
+    return (
+      <p className="text-sm text-gray-400">
+        ยังไม่มีข้อมูลมูลค่างาน (contractValue) พร้อมวันที่เพียงพอสำหรับสร้างกราฟสะสม — กรอกมูลค่างานและวันที่ในแต่ละขั้นตอนก่อน
+      </p>
+    );
+  }
+
+  const width = 640;
+  const height = 220;
+  const padLeft = 34;
+  const padRight = 12;
+  const padTop = 12;
+  const padBottom = 24;
+  const plotW = width - padLeft - padRight;
+  const plotH = height - padTop - padBottom;
+
+  const x = (i: number) => padLeft + (months.length > 1 ? (i / (months.length - 1)) * plotW : plotW / 2);
+  const y = (pct: number) => padTop + plotH - (pct / 100) * plotH;
+
+  const planPoints = months.map((m, i) => ({ x: x(i), y: y(valueAtMonth(monthlyPlan, m)), pct: valueAtMonth(monthlyPlan, m) }));
+  const actualPoints = months.map((m, i) => ({
+    x: x(i),
+    y: y(valueAtMonth(monthlyActual, m)),
+    pct: valueAtMonth(monthlyActual, m),
+  }));
+
+  const pathFor = (points: { x: number; y: number }[]) =>
+    points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-4 text-xs text-gray-500">
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-0.5 w-4 border-t-2 border-dashed border-gray-400" /> แผนสะสม (%)
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-0.5 w-4 border-t-2 border-[#1B5E3A]" /> จริงสะสม (%)
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" role="img" aria-label="กราฟสะสมมูลค่างาน แผนเทียบจริง">
+        {[0, 25, 50, 75, 100].map((pct) => (
+          <g key={pct}>
+            <line x1={padLeft} x2={width - padRight} y1={y(pct)} y2={y(pct)} stroke="#f0f0f0" strokeWidth={1} />
+            <text x={padLeft - 6} y={y(pct) + 3} textAnchor="end" fontSize={9} fill="#9ca3af">
+              {pct}%
+            </text>
+          </g>
+        ))}
+        <path d={pathFor(planPoints)} fill="none" stroke="#9ca3af" strokeWidth={2} strokeDasharray="4 3" strokeLinecap="round" />
+        <path d={pathFor(actualPoints)} fill="none" stroke="#1B5E3A" strokeWidth={2} strokeLinecap="round" />
+        {planPoints.map((p, i) => (
+          <circle key={`plan-${i}`} cx={p.x} cy={p.y} r={3} fill="#9ca3af">
+            <title>{`${formatMonth(months[i])}: แผนสะสม ${p.pct}%`}</title>
+          </circle>
+        ))}
+        {actualPoints.map((p, i) => (
+          <circle key={`actual-${i}`} cx={p.x} cy={p.y} r={3} fill="#1B5E3A">
+            <title>{`${formatMonth(months[i])}: จริงสะสม ${p.pct}%`}</title>
+          </circle>
+        ))}
+        {months.map((m, i) => (
+          <text key={m} x={x(i)} y={height - 6} textAnchor="middle" fontSize={9} fill="#9ca3af">
+            {formatMonth(m)}
+          </text>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 export default function ConstructionPage() {
   const { token, user } = useAuth();
   const canManage =
@@ -78,6 +178,11 @@ export default function ConstructionPage() {
   });
   const [feasibilitySaving, setFeasibilitySaving] = useState(false);
 
+  const [milestonesData, setMilestonesData] = useState<PaymentMilestonesResponse | null>(null);
+  const [milestoneForm, setMilestoneForm] = useState({ name: '', amount: '0', plannedDate: '' });
+  const [milestoneSaving, setMilestoneSaving] = useState(false);
+  const [milestoneActionId, setMilestoneActionId] = useState<string | null>(null);
+
   const selected = costCenters.find((c) => c.id === selectedId);
 
   useEffect(() => {
@@ -95,6 +200,17 @@ export default function ConstructionPage() {
       setPhasesData(await api.get<ConstructionPhasesResponse>(`/construction-phases?costCenterId=${costCenterId}`, token));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'โหลดขั้นตอนงานไม่สำเร็จ');
+    }
+  }
+
+  async function loadMilestones(costCenterId: string) {
+    if (!token) return;
+    try {
+      setMilestonesData(
+        await api.get<PaymentMilestonesResponse>(`/payment-milestones?costCenterId=${costCenterId}`, token),
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'โหลดงวดเงินไม่สำเร็จ');
     }
   }
 
@@ -121,15 +237,76 @@ export default function ConstructionPage() {
     if (!selectedId) {
       setPhasesData(null);
       setFeasibility(null);
+      setMilestonesData(null);
       return;
     }
     if (selected?.type === 'HOUSE') {
       loadPhases(selectedId);
+      loadMilestones(selectedId);
     } else if (selected?.type === 'PROJECT') {
       loadFeasibility(selectedId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
+
+  async function handleAddMilestone(e: FormEvent) {
+    e.preventDefault();
+    if (!token || !selectedId) return;
+    setMilestoneSaving(true);
+    setError(null);
+    try {
+      const nextSequence = (milestonesData?.milestones.length ?? 0) + 1;
+      await api.post(
+        '/payment-milestones',
+        {
+          costCenterId: selectedId,
+          sequence: nextSequence,
+          name: milestoneForm.name,
+          amount: Number(milestoneForm.amount),
+          plannedDate: milestoneForm.plannedDate || undefined,
+        },
+        token,
+      );
+      setMilestoneForm({ name: '', amount: '0', plannedDate: '' });
+      await loadMilestones(selectedId);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'เพิ่มงวดเงินไม่สำเร็จ');
+    } finally {
+      setMilestoneSaving(false);
+    }
+  }
+
+  async function handleMarkPaid(milestone: PaymentMilestone) {
+    if (!token || !selectedId) return;
+    setMilestoneActionId(milestone.id);
+    setError(null);
+    try {
+      await api.patch(
+        `/payment-milestones/${milestone.id}`,
+        { actualPaidDate: new Date().toISOString().slice(0, 10) },
+        token,
+      );
+      await loadMilestones(selectedId);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'บันทึกการรับเงินไม่สำเร็จ');
+    } finally {
+      setMilestoneActionId(null);
+    }
+  }
+
+  async function handleDeleteMilestone(milestone: PaymentMilestone) {
+    if (!token || !selectedId) return;
+    setMilestoneActionId(milestone.id);
+    setError(null);
+    try {
+      await api.delete(`/payment-milestones/${milestone.id}`, token);
+      await loadMilestones(selectedId);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'ลบงวดเงินไม่สำเร็จ');
+    } finally {
+      setMilestoneActionId(null);
+    }
+  }
 
   async function handleSeed(houseType: HouseTemplateType) {
     if (!token || !selectedId) return;
@@ -148,6 +325,7 @@ export default function ConstructionPage() {
   function startEdit(phase: ConstructionPhase) {
     setEditingId(phase.id);
     setEditDraft({
+      contractValue: String(phase.contractValue),
       plannedStartDate: toDateInput(phase.plannedStartDate),
       plannedEndDate: toDateInput(phase.plannedEndDate),
       actualStartDate: toDateInput(phase.actualStartDate),
@@ -165,6 +343,7 @@ export default function ConstructionPage() {
       await api.patch(
         `/construction-phases/${editingId}`,
         {
+          contractValue: Number(editDraft.contractValue),
           plannedStartDate: editDraft.plannedStartDate || undefined,
           plannedEndDate: editDraft.plannedEndDate || undefined,
           actualStartDate: editDraft.actualStartDate || undefined,
@@ -249,23 +428,28 @@ export default function ConstructionPage() {
         </select>
       </div>
 
-      {selected?.type === 'HOUSE' && phasesData && phasesData.phases.length === 0 && canManage && (
+      {selected?.type === 'HOUSE' && phasesData && phasesData.phases.length === 0 && (
         <div className={card}>
-          <p className="text-sm text-gray-700">ยังไม่มีขั้นตอนงานสำหรับบ้านนี้ เริ่มจากเทมเพลต:</p>
-          <div className="mt-3 flex gap-2">
-            <button disabled={seeding} onClick={() => handleSeed('SINGLE_STORY')} className={primaryButton}>
-              บ้านชั้นเดียว
-            </button>
-            <button disabled={seeding} onClick={() => handleSeed('TWO_STORY')} className={primaryButton}>
-              บ้านสองชั้น
-            </button>
-          </div>
+          <p className="text-sm text-gray-700">
+            ยังไม่มีขั้นตอนงานสำหรับบ้านนี้
+            {canManage ? ' เริ่มจากเทมเพลต:' : ' กรุณาติดต่อผู้ดูแลระบบ (Project Manager/CEO/CFO) เพื่อสร้างขั้นตอนงาน'}
+          </p>
+          {canManage && (
+            <div className="mt-3 flex gap-2">
+              <button disabled={seeding} onClick={() => handleSeed('SINGLE_STORY')} className={primaryButton}>
+                บ้านชั้นเดียว
+              </button>
+              <button disabled={seeding} onClick={() => handleSeed('TWO_STORY')} className={primaryButton}>
+                บ้านสองชั้น
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {selected?.type === 'HOUSE' && phasesData && phasesData.phases.length > 0 && (
         <>
-          <div className={`${card} grid grid-cols-2 gap-4 sm:grid-cols-4`}>
+          <div className={`${card} grid grid-cols-2 gap-4 sm:grid-cols-5`}>
             <div>
               <p className="text-xs text-gray-500">ความคืบหน้ารวม</p>
               <p className="text-lg font-semibold text-[#1B5E3A]">{phasesData.summary.overallPercent}%</p>
@@ -290,6 +474,17 @@ export default function ConstructionPage() {
                   : '-'}
               </p>
             </div>
+            <div>
+              <p className="text-xs text-gray-500">มูลค่าสัญญารวม</p>
+              <p className="text-lg font-semibold">{formatThb(phasesData.summary.totalContractValue)}</p>
+            </div>
+          </div>
+
+          <div className={card}>
+            <h2 className="mb-3 text-sm font-semibold text-gray-900">
+              กราฟสะสมมูลค่างาน (S-Curve) — แผนเทียบจริง
+            </h2>
+            <SCurveChart monthlyPlan={phasesData.summary.monthlyPlan} monthlyActual={phasesData.summary.monthlyActual} />
           </div>
 
           <div className={card}>
@@ -333,7 +528,17 @@ export default function ConstructionPage() {
             </div>
 
             {editingId && (
-              <form onSubmit={saveEdit} className="mt-4 grid grid-cols-1 gap-2 border-t border-gray-100 pt-4 sm:grid-cols-6">
+              <form onSubmit={saveEdit} className="mt-4 grid grid-cols-1 gap-2 border-t border-gray-100 pt-4 sm:grid-cols-7">
+                <div>
+                  <label className={label}>มูลค่างาน (บาท)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={input}
+                    value={editDraft.contractValue}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, contractValue: e.target.value }))}
+                  />
+                </div>
                 <div>
                   <label className={label}>แผนเริ่ม</label>
                   <input
@@ -392,6 +597,114 @@ export default function ConstructionPage() {
               </form>
             )}
           </div>
+
+          {milestonesData && (
+            <div className={card}>
+              <h2 className="text-sm font-semibold text-gray-900">งวดงานการชำระเงิน (Payment Milestones)</h2>
+              <p className="mt-1 text-xs text-gray-400">
+                บันทึกงวดเงินที่ลูกค้าต้องชำระตามความคืบหน้างาน และวันที่รับเงินจริง เพื่อดู Cash Flow ของบ้านหลังนี้
+              </p>
+
+              <div className="mt-3 grid grid-cols-3 gap-4 border-b border-gray-100 pb-4 text-sm">
+                <div>
+                  <p className="text-xs text-gray-500">มูลค่างวดรวม</p>
+                  <p className="font-semibold">{formatThb(milestonesData.summary.totalAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">รับแล้ว</p>
+                  <p className="font-semibold text-[#1B5E3A]">{formatThb(milestonesData.summary.totalReceived)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">ค้างรับ</p>
+                  <p className="font-semibold text-[#B8860B]">{formatThb(milestonesData.summary.totalPending)}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {milestonesData.milestones.length === 0 && (
+                  <p className="text-sm text-gray-400">ยังไม่มีงวดเงินสำหรับบ้านนี้</p>
+                )}
+                {milestonesData.milestones.map((m) => (
+                  <div
+                    key={m.id}
+                    className="grid grid-cols-1 items-center gap-2 border-b border-gray-50 pb-2 text-sm sm:grid-cols-[1fr_auto_auto_auto_auto]"
+                  >
+                    <div>
+                      <span className="text-gray-400">{m.sequence}.</span> {m.name}
+                    </div>
+                    <div className="text-gray-700">{formatThb(m.amount)}</div>
+                    <div className="text-xs text-gray-500">
+                      แผน: {m.plannedDate ? formatDate(m.plannedDate) : '-'}
+                    </div>
+                    <div className={`${badge} ${m.actualPaidDate ? 'bg-green-50 text-[#1B5E3A]' : 'bg-amber-50 text-[#B8860B]'}`}>
+                      {m.actualPaidDate ? `รับแล้ว ${formatDate(m.actualPaidDate)}` : 'รอรับเงิน'}
+                    </div>
+                    {canManage && (
+                      <div className="flex gap-2">
+                        {!m.actualPaidDate && (
+                          <button
+                            disabled={milestoneActionId === m.id}
+                            onClick={() => handleMarkPaid(m)}
+                            className={`${secondaryButton} px-2 py-1 text-xs`}
+                          >
+                            รับเงินแล้ว
+                          </button>
+                        )}
+                        <button
+                          disabled={milestoneActionId === m.id}
+                          onClick={() => handleDeleteMilestone(m)}
+                          className={`${secondaryButton} px-2 py-1 text-xs`}
+                        >
+                          ลบ
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {canManage && (
+                <form onSubmit={handleAddMilestone} className="mt-4 grid grid-cols-1 gap-2 border-t border-gray-100 pt-4 sm:grid-cols-4">
+                  <div>
+                    <label className={label}>ชื่องวด</label>
+                    <input
+                      type="text"
+                      required
+                      className={input}
+                      value={milestoneForm.name}
+                      onChange={(e) => setMilestoneForm((f) => ({ ...f, name: e.target.value }))}
+                      placeholder="เช่น งวดที่ 1 - วางเสาเข็ม"
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>จำนวนเงิน (บาท)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      className={input}
+                      value={milestoneForm.amount}
+                      onChange={(e) => setMilestoneForm((f) => ({ ...f, amount: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>วันครบกำหนด (แผน)</label>
+                    <input
+                      type="date"
+                      className={input}
+                      value={milestoneForm.plannedDate}
+                      onChange={(e) => setMilestoneForm((f) => ({ ...f, plannedDate: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button type="submit" disabled={milestoneSaving} className={primaryButton}>
+                      {milestoneSaving ? 'กำลังเพิ่ม...' : 'เพิ่มงวดเงิน'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
         </>
       )}
 
