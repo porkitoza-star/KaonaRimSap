@@ -20,6 +20,7 @@ import { MaterialsModule } from './materials/materials.module';
 import { ConstructionPhasesModule } from './construction-phases/construction-phases.module';
 import { FeasibilityModule } from './feasibility/feasibility.module';
 import { PaymentMilestonesModule } from './payment-milestones/payment-milestones.module';
+import { BoqTemplatesModule } from './boq-templates/boq-templates.module';
 import { LedgerImportModule } from './ledger-import/ledger-import.module';
 
 @Module({
@@ -44,6 +45,7 @@ import { LedgerImportModule } from './ledger-import/ledger-import.module';
     ConstructionPhasesModule,
     FeasibilityModule,
     PaymentMilestonesModule,
+    BoqTemplatesModule,
     LedgerImportModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

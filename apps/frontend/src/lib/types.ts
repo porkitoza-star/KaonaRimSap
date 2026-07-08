@@ -240,6 +240,42 @@ export interface PaymentMilestonesResponse {
   summary: PaymentMilestonesSummary;
 }
 
+export interface BoqTemplateSummary {
+  id: string;
+  name: string;
+  description: string;
+  baseAreaSqm: number;
+  itemCount: number;
+  categorySubtotals: { category: string; amount: number }[];
+  totalAmount: number;
+}
+
+export interface BoqTemplateItemDetail {
+  category: string;
+  seq: number;
+  name: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  notes: string | null;
+  amount?: number;
+}
+
+export interface BoqTemplatePreview {
+  templateId: string;
+  baseAreaSqm: number;
+  targetAreaSqm: number;
+  scaleRatio: number;
+  items: BoqTemplateItemDetail[];
+  categorySubtotals: { category: string; amount: number }[];
+  totalAmount: number;
+}
+
+export interface BoqTemplateApplyResult {
+  createdCount: number;
+  totalAmount: number;
+}
+
 export type FeasibilityCostCategory = 'LAND' | 'CONSTRUCTION' | 'INFRASTRUCTURE' | 'OVERHEAD' | 'FINANCING';
 
 export interface FeasibilityCostItem {
