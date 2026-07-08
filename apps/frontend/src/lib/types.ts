@@ -239,19 +239,43 @@ export interface PaymentMilestonesResponse {
   summary: PaymentMilestonesSummary;
 }
 
-export interface ProjectFeasibility {
-  houseCount: number;
-  constructionCostPerUnit: number;
-  landCostPerUnit: number;
-  otherCostPerUnit: number;
-  sellingPricePerUnit: number;
+export type FeasibilityCostCategory = 'LAND' | 'CONSTRUCTION' | 'INFRASTRUCTURE' | 'OVERHEAD' | 'FINANCING';
+
+export interface FeasibilityCostItem {
+  id?: string;
+  category: FeasibilityCostCategory;
+  name: string;
+  amount: number;
   notes?: string | null;
-  costPerUnit: number;
-  profitPerUnit: number;
-  marginPercent: number;
+}
+
+export interface FeasibilitySummary {
+  totalLand: number;
+  totalConstruction: number;
+  totalInfrastructure: number;
+  totalOverhead: number;
+  totalFinancing: number;
   totalCost: number;
   totalRevenue: number;
-  totalProfit: number;
+  grossProfit: number;
+  ebit: number;
+  ebt: number;
+  netProfit: number;
+  rosPercent: number;
+  roiPercent: number;
+  roePercent: number | null;
+  costPerUnit: number;
+  profitPerUnit: number;
+}
+
+export interface ProjectFeasibility {
+  houseCount: number;
+  sellingPricePerUnit: number;
+  equityAmount: number | null;
+  corporateTaxRatePercent: number;
+  notes?: string | null;
+  costItems: FeasibilityCostItem[];
+  summary: FeasibilitySummary;
 }
 
 export interface WhtCertificate {
