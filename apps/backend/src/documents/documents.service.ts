@@ -102,6 +102,7 @@ export class DocumentsService {
             amount: dto.subtotal,
             costCenterId: dto.costCenterId,
             accountId: dto.accountId,
+            workCategory: dto.workCategory,
           },
         ],
       },

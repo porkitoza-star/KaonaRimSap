@@ -86,6 +86,7 @@ export interface BillLine {
   amount: string;
   costCenterId: string;
   accountId: string;
+  workCategory?: string | null;
 }
 
 export interface Bill {
@@ -266,6 +267,25 @@ export interface FeasibilitySummary {
   roePercent: number | null;
   costPerUnit: number;
   profitPerUnit: number;
+}
+
+export interface MonthlyIncomeExpense {
+  month: string;
+  income: number;
+  expense: number;
+  net: number;
+}
+
+export interface WorkCategoryExpense {
+  category: string;
+  amount: number;
+}
+
+export interface IncomeExpenseSummary {
+  monthly: MonthlyIncomeExpense[];
+  byWorkCategory: WorkCategoryExpense[];
+  totalIncome: number;
+  totalExpense: number;
 }
 
 export interface ProjectFeasibility {

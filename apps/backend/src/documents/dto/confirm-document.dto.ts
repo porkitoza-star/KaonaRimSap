@@ -40,5 +40,9 @@ export class ConfirmDocumentDto {
 
   @IsOptional()
   @IsString()
+  workCategory?: string;
+
+  @IsOptional()
+  @IsString()
   description?: string;
 }

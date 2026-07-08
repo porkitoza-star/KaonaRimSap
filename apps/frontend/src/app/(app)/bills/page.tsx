@@ -15,9 +15,16 @@ interface LineDraft {
   amount: string;
   costCenterId: string;
   accountId: string;
+  workCategory: string;
 }
 
-const emptyLine = (): LineDraft => ({ description: '', amount: '', costCenterId: '', accountId: '' });
+const emptyLine = (): LineDraft => ({
+  description: '',
+  amount: '',
+  costCenterId: '',
+  accountId: '',
+  workCategory: '',
+});
 
 export default function BillsPage() {
   const { token, user } = useAuth();
@@ -276,7 +283,7 @@ export default function BillsPage() {
             <div className="space-y-3">
               <p className={label}>รายการ</p>
               {lines.map((line, idx) => (
-                <div key={idx} className="grid grid-cols-1 gap-2 rounded-lg border border-gray-100 p-3 sm:grid-cols-4">
+                <div key={idx} className="grid grid-cols-1 gap-2 rounded-lg border border-gray-100 p-3 sm:grid-cols-5">
                   <input
                     className={input}
                     placeholder="รายละเอียด"
@@ -320,6 +327,12 @@ export default function BillsPage() {
                       </option>
                     ))}
                   </select>
+                  <input
+                    className={input}
+                    placeholder="หมวดงาน (ไม่บังคับ)"
+                    value={line.workCategory}
+                    onChange={(e) => updateLine(idx, { workCategory: e.target.value })}
+                  />
                 </div>
               ))}
               <div className="flex gap-2">
