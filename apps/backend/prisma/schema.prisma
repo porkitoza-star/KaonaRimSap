@@ -185,15 +185,38 @@ model ProjectFeasibility {
   costCenterId            String   @unique
   costCenter              CostCenter @relation(fields: [costCenterId], references: [id])
   houseCount              Int      @default(1)
-  constructionCostPerUnit Decimal  @default(0) @db.Decimal(15, 2)
-  landCostPerUnit         Decimal  @default(0) @db.Decimal(15, 2)
-  otherCostPerUnit        Decimal  @default(0) @db.Decimal(15, 2)
   sellingPricePerUnit     Decimal  @default(0) @db.Decimal(15, 2)
+  equityAmount            Decimal? @db.Decimal(15, 2)
+  corporateTaxRatePercent Decimal  @default(0) @db.Decimal(5, 2)
   notes                   String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
+  costItems               FeasibilityCostItem[]
+
   @@map("project_feasibility")
+}
+
+enum FeasibilityCostCategory {
+  LAND
+  CONSTRUCTION
+  INFRASTRUCTURE
+  OVERHEAD
+  FINANCING
+}
+
+model FeasibilityCostItem {
+  id            String                   @id @default(uuid())
+  feasibilityId String
+  feasibility   ProjectFeasibility       @relation(fields: [feasibilityId], references: [id], onDelete: Cascade)
+  category      FeasibilityCostCategory
+  name          String
+  amount        Decimal                  @default(0) @db.Decimal(15, 2)
+  notes         String?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  @@map("feasibility_cost_items")
 }
 
 model MaterialItem {

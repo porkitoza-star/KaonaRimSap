@@ -7,6 +7,8 @@ import type {
   ConstructionPhase,
   ConstructionPhasesResponse,
   CostCenter,
+  FeasibilityCostCategory,
+  FeasibilityCostItem,
   HouseTemplateType,
   PaymentMilestone,
   PaymentMilestonesResponse,
@@ -171,11 +173,11 @@ export default function ConstructionPage() {
   const [feasibility, setFeasibility] = useState<ProjectFeasibility | null>(null);
   const [feasibilityForm, setFeasibilityForm] = useState({
     houseCount: '1',
-    constructionCostPerUnit: '0',
-    landCostPerUnit: '0',
-    otherCostPerUnit: '0',
     sellingPricePerUnit: '0',
+    equityAmount: '',
+    corporateTaxRatePercent: '0',
   });
+  const [costItemsDraft, setCostItemsDraft] = useState<FeasibilityCostItem[]>([]);
   const [feasibilitySaving, setFeasibilitySaving] = useState(false);
 
   const [milestonesData, setMilestonesData] = useState<PaymentMilestonesResponse | null>(null);
@@ -222,11 +224,13 @@ export default function ConstructionPage() {
       if (data) {
         setFeasibilityForm({
           houseCount: String(data.houseCount),
-          constructionCostPerUnit: String(data.constructionCostPerUnit),
-          landCostPerUnit: String(data.landCostPerUnit),
-          otherCostPerUnit: String(data.otherCostPerUnit),
           sellingPricePerUnit: String(data.sellingPricePerUnit),
+          equityAmount: data.equityAmount !== null ? String(data.equityAmount) : '',
+          corporateTaxRatePercent: String(data.corporateTaxRatePercent),
         });
+        setCostItemsDraft(data.costItems);
+      } else {
+        setCostItemsDraft([]);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'โหลดข้อมูล Feasibility ไม่สำเร็จ');
@@ -373,6 +377,18 @@ export default function ConstructionPage() {
     return { start: Math.min(...dates), end: Math.max(Math.max(...dates), Date.now()) };
   }, [phasesData]);
 
+  function addCostItemRow() {
+    setCostItemsDraft((rows) => [...rows, { category: 'LAND', name: '', amount: 0 }]);
+  }
+
+  function updateCostItemRow(index: number, patch: Partial<FeasibilityCostItem>) {
+    setCostItemsDraft((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  function removeCostItemRow(index: number) {
+    setCostItemsDraft((rows) => rows.filter((_, i) => i !== index));
+  }
+
   async function handleFeasibilitySave(e: FormEvent) {
     e.preventDefault();
     if (!token || !selectedId) return;
@@ -383,14 +399,17 @@ export default function ConstructionPage() {
         `/feasibility/${selectedId}`,
         {
           houseCount: Number(feasibilityForm.houseCount),
-          constructionCostPerUnit: Number(feasibilityForm.constructionCostPerUnit),
-          landCostPerUnit: Number(feasibilityForm.landCostPerUnit),
-          otherCostPerUnit: Number(feasibilityForm.otherCostPerUnit),
           sellingPricePerUnit: Number(feasibilityForm.sellingPricePerUnit),
+          equityAmount: feasibilityForm.equityAmount ? Number(feasibilityForm.equityAmount) : undefined,
+          corporateTaxRatePercent: Number(feasibilityForm.corporateTaxRatePercent),
+          costItems: costItemsDraft
+            .filter((row) => row.name.trim().length > 0)
+            .map((row) => ({ category: row.category, name: row.name, amount: Number(row.amount) })),
         },
         token,
       );
       setFeasibility(saved);
+      setCostItemsDraft(saved.costItems);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'บันทึก Feasibility ไม่สำเร็จ');
     } finally {
@@ -712,66 +731,107 @@ export default function ConstructionPage() {
         <div className={card}>
           <h2 className="text-sm font-semibold text-gray-900">Feasibility — ประเมินความคุ้มค่าโครงการ</h2>
           <p className="mt-1 text-xs text-gray-400">
-            กรอกสมมติฐานต้นทุน/ราคาขายต่อหลังเอง (ระบบไม่มีค่ามาตรฐานในตัว) เพื่อคำนวณกำไรและ Margin ของทั้งโครงการ
+            กรอกรายการต้นทุนจริงเป็นรายการย่อยตามหมวด (ระบบไม่มีค่ามาตรฐานในตัว) เพื่อคำนวณ Gross Profit, EBIT, EBT,
+            Net Profit, ROS, ROI, ROE ของทั้งโครงการ
           </p>
-          <form onSubmit={handleFeasibilitySave} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
-              <label className={label}>จำนวนบ้าน (หลัง)</label>
-              <input
-                type="number"
-                min="1"
-                max="8"
-                className={input}
-                value={feasibilityForm.houseCount}
-                onChange={(e) => setFeasibilityForm((f) => ({ ...f, houseCount: e.target.value }))}
-                required
-              />
+          <form onSubmit={handleFeasibilitySave} className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+              <div>
+                <label className={label}>จำนวนบ้าน (หลัง)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="8"
+                  className={input}
+                  value={feasibilityForm.houseCount}
+                  onChange={(e) => setFeasibilityForm((f) => ({ ...f, houseCount: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={label}>ราคาขายต่อหลัง (บาท)</label>
+                <input
+                  type="number"
+                  min="0"
+                  className={input}
+                  value={feasibilityForm.sellingPricePerUnit}
+                  onChange={(e) => setFeasibilityForm((f) => ({ ...f, sellingPricePerUnit: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className={label}>ทุนที่ลงจริง (บาท, สำหรับคำนวณ ROE)</label>
+                <input
+                  type="number"
+                  min="0"
+                  className={input}
+                  value={feasibilityForm.equityAmount}
+                  onChange={(e) => setFeasibilityForm((f) => ({ ...f, equityAmount: e.target.value }))}
+                  placeholder="ไม่บังคับ"
+                />
+              </div>
+              <div>
+                <label className={label}>อัตราภาษีนิติบุคคล (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className={input}
+                  value={feasibilityForm.corporateTaxRatePercent}
+                  onChange={(e) => setFeasibilityForm((f) => ({ ...f, corporateTaxRatePercent: e.target.value }))}
+                />
+              </div>
             </div>
+
             <div>
-              <label className={label}>ต้นทุนก่อสร้างต่อหลัง (บาท)</label>
-              <input
-                type="number"
-                min="0"
-                className={input}
-                value={feasibilityForm.constructionCostPerUnit}
-                onChange={(e) => setFeasibilityForm((f) => ({ ...f, constructionCostPerUnit: e.target.value }))}
-                required
-              />
+              <p className={label}>รายการต้นทุน (แยกตามหมวด)</p>
+              <div className="mt-2 space-y-2">
+                {costItemsDraft.map((row, index) => (
+                  <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[160px_1fr_180px_auto]">
+                    <select
+                      className={input}
+                      value={row.category}
+                      onChange={(e) =>
+                        updateCostItemRow(index, { category: e.target.value as FeasibilityCostCategory })
+                      }
+                    >
+                      <option value="LAND">ที่ดิน</option>
+                      <option value="CONSTRUCTION">ก่อสร้าง</option>
+                      <option value="INFRASTRUCTURE">สาธารณูปโภคส่วนกลาง</option>
+                      <option value="OVERHEAD">ค่าใช้จ่ายโครงการ</option>
+                      <option value="FINANCING">ต้นทุนทางการเงิน</option>
+                    </select>
+                    <input
+                      type="text"
+                      className={input}
+                      placeholder="เช่น ค่าที่ดิน, ดอกเบี้ยเงินกู้ระยะยาว"
+                      value={row.name}
+                      onChange={(e) => updateCostItemRow(index, { name: e.target.value })}
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      className={input}
+                      placeholder="จำนวนเงิน (บาท)"
+                      value={row.amount}
+                      onChange={(e) => updateCostItemRow(index, { amount: Number(e.target.value) })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeCostItemRow(index)}
+                      className={`${secondaryButton} px-2 py-1 text-xs`}
+                    >
+                      ลบ
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={addCostItemRow} className={`${secondaryButton} mt-2`}>
+                + เพิ่มรายการต้นทุน
+              </button>
             </div>
+
             <div>
-              <label className={label}>ต้นทุนที่ดินต่อหลัง (บาท)</label>
-              <input
-                type="number"
-                min="0"
-                className={input}
-                value={feasibilityForm.landCostPerUnit}
-                onChange={(e) => setFeasibilityForm((f) => ({ ...f, landCostPerUnit: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <label className={label}>ต้นทุนอื่นต่อหลัง (บาท)</label>
-              <input
-                type="number"
-                min="0"
-                className={input}
-                value={feasibilityForm.otherCostPerUnit}
-                onChange={(e) => setFeasibilityForm((f) => ({ ...f, otherCostPerUnit: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <label className={label}>ราคาขายต่อหลัง (บาท)</label>
-              <input
-                type="number"
-                min="0"
-                className={input}
-                value={feasibilityForm.sellingPricePerUnit}
-                onChange={(e) => setFeasibilityForm((f) => ({ ...f, sellingPricePerUnit: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="flex items-end">
               <button type="submit" disabled={feasibilitySaving} className={primaryButton}>
                 {feasibilitySaving ? 'กำลังคำนวณ...' : 'คำนวณ / บันทึก'}
               </button>
@@ -779,34 +839,80 @@ export default function ConstructionPage() {
           </form>
 
           {feasibility && (
-            <div className="mt-6 grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 sm:grid-cols-4">
-              <div>
-                <p className="text-xs text-gray-500">ต้นทุนต่อหลัง</p>
-                <p className="text-base font-semibold">{formatThb(feasibility.costPerUnit)}</p>
+            <div className="mt-6 space-y-4 border-t border-gray-100 pt-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+                <div>
+                  <p className="text-xs text-gray-500">ที่ดิน</p>
+                  <p className="text-sm font-semibold">{formatThb(feasibility.summary.totalLand)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">ก่อสร้าง</p>
+                  <p className="text-sm font-semibold">{formatThb(feasibility.summary.totalConstruction)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">สาธารณูปโภค</p>
+                  <p className="text-sm font-semibold">{formatThb(feasibility.summary.totalInfrastructure)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">ค่าใช้จ่ายโครงการ</p>
+                  <p className="text-sm font-semibold">{formatThb(feasibility.summary.totalOverhead)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">ต้นทุนทางการเงิน</p>
+                  <p className="text-sm font-semibold">{formatThb(feasibility.summary.totalFinancing)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-gray-500">กำไรต่อหลัง</p>
-                <p className="text-base font-semibold text-[#1B5E3A]">{formatThb(feasibility.profitPerUnit)}</p>
+
+              <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 sm:grid-cols-4">
+                <div>
+                  <p className="text-xs text-gray-500">ต้นทุนรวมทั้งโครงการ</p>
+                  <p className="text-base font-semibold">{formatThb(feasibility.summary.totalCost)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">รายได้รวมทั้งโครงการ</p>
+                  <p className="text-base font-semibold">{formatThb(feasibility.summary.totalRevenue)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Gross Profit</p>
+                  <p className="text-base font-semibold">{formatThb(feasibility.summary.grossProfit)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">EBIT</p>
+                  <p className="text-base font-semibold">{formatThb(feasibility.summary.ebit)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">EBT</p>
+                  <p className="text-base font-semibold">{formatThb(feasibility.summary.ebt)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Net Profit</p>
+                  <p className="text-base font-semibold text-[#1B5E3A]">{formatThb(feasibility.summary.netProfit)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">ต้นทุนต่อหลัง</p>
+                  <p className="text-base font-semibold">{formatThb(feasibility.summary.costPerUnit)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">กำไรสุทธิต่อหลัง</p>
+                  <p className="text-base font-semibold text-[#1B5E3A]">{formatThb(feasibility.summary.profitPerUnit)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-gray-500">Margin</p>
-                <p className="text-base font-semibold">{feasibility.marginPercent}%</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">จำนวนบ้าน</p>
-                <p className="text-base font-semibold">{feasibility.houseCount} หลัง</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">ต้นทุนรวมทั้งโครงการ</p>
-                <p className="text-base font-semibold">{formatThb(feasibility.totalCost)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">รายได้รวมทั้งโครงการ</p>
-                <p className="text-base font-semibold">{formatThb(feasibility.totalRevenue)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">กำไรรวมทั้งโครงการ</p>
-                <p className="text-base font-semibold text-[#1B5E3A]">{formatThb(feasibility.totalProfit)}</p>
+
+              <div className="grid grid-cols-3 gap-4 border-t border-gray-100 pt-4">
+                <div>
+                  <p className="text-xs text-gray-500">ROS (Return on Sales)</p>
+                  <p className="text-base font-semibold">{feasibility.summary.rosPercent}%</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">ROI (Return on Investment)</p>
+                  <p className="text-base font-semibold">{feasibility.summary.roiPercent}%</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">ROE (Return on Equity)</p>
+                  <p className="text-base font-semibold">
+                    {feasibility.summary.roePercent !== null ? `${feasibility.summary.roePercent}%` : '-'}
+                  </p>
+                </div>
               </div>
             </div>
           )}
