@@ -385,6 +385,7 @@ model BillLine {
   costCenter   CostCenter @relation(fields: [costCenterId], references: [id])
   accountId    String
   account      Account    @relation(fields: [accountId], references: [id])
+  workCategory String?
 
   @@map("bill_lines")
 }

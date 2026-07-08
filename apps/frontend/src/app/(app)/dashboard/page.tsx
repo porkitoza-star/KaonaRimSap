@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api, ApiError } from '@/lib/api';
+import type { IncomeExpenseSummary } from '@/lib/types';
 import { formatDate, formatThb } from '@/lib/format';
 import { StatTile } from '@/components/stat-tile';
 import { AgingBarChart } from '@/components/aging-bar-chart';
+import { IncomeExpenseChart } from '@/components/income-expense-chart';
 
 interface CashBalance {
   balance: number;
@@ -52,6 +54,7 @@ export default function DashboardPage() {
   const [pnl, setPnl] = useState<PnlRow[] | null>(null);
   const [forecast, setForecast] = useState<CashFlowForecast | null>(null);
   const [milestones, setMilestones] = useState<PendingMilestones | null>(null);
+  const [incomeExpense, setIncomeExpense] = useState<IncomeExpenseSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,14 +66,16 @@ export default function DashboardPage() {
       api.get<PnlRow[]>('/dashboard/pnl-by-cost-center', token),
       api.get<CashFlowForecast>('/dashboard/cash-flow-forecast', token),
       api.get<PendingMilestones>('/dashboard/pending-construction-milestones', token),
+      api.get<IncomeExpenseSummary>('/dashboard/income-expense-summary', token),
     ])
-      .then(([cashRes, arRes, apRes, pnlRes, forecastRes, milestonesRes]) => {
+      .then(([cashRes, arRes, apRes, pnlRes, forecastRes, milestonesRes, incomeExpenseRes]) => {
         setCash(cashRes);
         setArAging(arRes);
         setApAging(apRes);
         setPnl(pnlRes);
         setForecast(forecastRes);
         setMilestones(milestonesRes);
+        setIncomeExpense(incomeExpenseRes);
       })
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : 'โหลดข้อมูลแดชบอร์ดไม่สำเร็จ');
@@ -170,6 +175,50 @@ export default function DashboardPage() {
           </table>
         </div>
       </div>
+
+      {incomeExpense && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+            <h2 className="text-sm font-semibold text-gray-900">รายรับ-รายจ่ายรายเดือน</h2>
+            <p className="mt-1 text-xs text-gray-400">รวมจากใบแจ้งหนี้ (AR) และบิล (AP) ทั้งหมด ตามวันที่ออกเอกสาร</p>
+            <div className="mt-4">
+              <IncomeExpenseChart monthly={incomeExpense.monthly} />
+            </div>
+          </div>
+          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+            <h2 className="text-sm font-semibold text-gray-900">รายจ่ายแยกตามหมวดงาน</h2>
+            <p className="mt-1 text-xs text-gray-400">
+              รวมยอดค่าใช้จ่ายจากบิล (AP) ตามหมวดงานที่ระบุไว้ในแต่ละรายการ
+            </p>
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 text-xs text-gray-500">
+                    <th className="py-2 pr-4 font-medium">หมวดงาน</th>
+                    <th className="py-2 text-right font-medium">ยอดรวม</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {incomeExpense.byWorkCategory.length > 0 ? (
+                    incomeExpense.byWorkCategory.map((row) => (
+                      <tr key={row.category} className="border-b border-gray-50">
+                        <td className="py-2 pr-4">{row.category}</td>
+                        <td className="py-2 text-right tabular-nums">{formatThb(row.amount)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={2} className="py-4 text-center text-sm text-gray-400">
+                        ยังไม่มีข้อมูล
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {milestones && (milestones.overdue.length > 0 || milestones.dueSoon.length > 0) && (
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">

@@ -213,4 +213,64 @@ export class DashboardService {
       outflows,
     };
   }
+
+  async getIncomeExpenseSummary() {
+    const [invoices, bills] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where: { status: { not: InvoiceStatus.VOID } },
+        select: { issueDate: true, totalAmount: true },
+      }),
+      this.prisma.bill.findMany({
+        where: { status: { not: BillStatus.VOID } },
+        select: {
+          issueDate: true,
+          totalAmount: true,
+          lines: { select: { amount: true, workCategory: true } },
+        },
+      }),
+    ]);
+
+    const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+    const monthlyMap = new Map<string, { income: number; expense: number }>();
+    for (const inv of invoices) {
+      const key = monthKey(inv.issueDate);
+      const entry = monthlyMap.get(key) ?? { income: 0, expense: 0 };
+      entry.income += Number(inv.totalAmount);
+      monthlyMap.set(key, entry);
+    }
+    for (const bill of bills) {
+      const key = monthKey(bill.issueDate);
+      const entry = monthlyMap.get(key) ?? { income: 0, expense: 0 };
+      entry.expense += Number(bill.totalAmount);
+      monthlyMap.set(key, entry);
+    }
+
+    const monthly = [...monthlyMap.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([month, v]) => ({
+        month,
+        income: round2(v.income),
+        expense: round2(v.expense),
+        net: round2(v.income - v.expense),
+      }));
+
+    const byWorkCategoryMap = new Map<string, number>();
+    for (const bill of bills) {
+      for (const line of bill.lines) {
+        const key = line.workCategory?.trim() || 'ไม่ระบุหมวดงาน';
+        byWorkCategoryMap.set(key, round2((byWorkCategoryMap.get(key) ?? 0) + Number(line.amount)));
+      }
+    }
+    const byWorkCategory = [...byWorkCategoryMap.entries()]
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount);
+
+    return {
+      monthly,
+      byWorkCategory,
+      totalIncome: round2(invoices.reduce((sum, i) => sum + Number(i.totalAmount), 0)),
+      totalExpense: round2(bills.reduce((sum, b) => sum + Number(b.totalAmount), 0)),
+    };
+  }
 }
