@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/construction', label: 'ขั้นตอนงาน / Timeline / Feasibility' },
   { href: '/payments', label: 'การจ่าย-รับเงิน' },
   { href: '/wht-certificates', label: 'ใบหัก ณ ที่จ่าย' },
+  { href: '/ledger-import', label: 'นำเข้าบัญชีจาก Excel' },
   { href: '/profile', label: 'โปรไฟล์ของฉัน' },
 ];
 

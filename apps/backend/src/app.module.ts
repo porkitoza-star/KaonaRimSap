@@ -21,6 +21,7 @@ import { ConstructionPhasesModule } from './construction-phases/construction-pha
 import { FeasibilityModule } from './feasibility/feasibility.module';
 import { PaymentMilestonesModule } from './payment-milestones/payment-milestones.module';
 import { BoqTemplatesModule } from './boq-templates/boq-templates.module';
+import { LedgerImportModule } from './ledger-import/ledger-import.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { BoqTemplatesModule } from './boq-templates/boq-templates.module';
     FeasibilityModule,
     PaymentMilestonesModule,
     BoqTemplatesModule,
+    LedgerImportModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
