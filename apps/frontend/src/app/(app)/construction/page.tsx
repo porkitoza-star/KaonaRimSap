@@ -184,6 +184,10 @@ export default function ConstructionPage() {
   const [milestoneForm, setMilestoneForm] = useState({ name: '', amount: '0', plannedDate: '' });
   const [milestoneSaving, setMilestoneSaving] = useState(false);
   const [milestoneActionId, setMilestoneActionId] = useState<string | null>(null);
+  const [milestoneMode, setMilestoneMode] = useState<'single' | 'percentages'>('single');
+  const [percentTotalContractValue, setPercentTotalContractValue] = useState('0');
+  const [percentRows, setPercentRows] = useState<{ name: string; percent: string }[]>([{ name: '', percent: '' }]);
+  const [generatingMilestones, setGeneratingMilestones] = useState(false);
 
   const selected = costCenters.find((c) => c.id === selectedId);
 
@@ -277,6 +281,46 @@ export default function ConstructionPage() {
       setError(err instanceof ApiError ? err.message : 'เพิ่มงวดเงินไม่สำเร็จ');
     } finally {
       setMilestoneSaving(false);
+    }
+  }
+
+  function addPercentRow() {
+    setPercentRows((rows) => [...rows, { name: '', percent: '' }]);
+  }
+
+  function updatePercentRow(index: number, patch: Partial<{ name: string; percent: string }>) {
+    setPercentRows((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  function removePercentRow(index: number) {
+    setPercentRows((rows) => rows.filter((_, i) => i !== index));
+  }
+
+  const percentSum = percentRows.reduce((sum, row) => sum + (Number(row.percent) || 0), 0);
+
+  async function handleGenerateMilestones(e: FormEvent) {
+    e.preventDefault();
+    if (!token || !selectedId) return;
+    setGeneratingMilestones(true);
+    setError(null);
+    try {
+      await api.post(
+        '/payment-milestones/generate-from-percentages',
+        {
+          costCenterId: selectedId,
+          totalContractValue: Number(percentTotalContractValue),
+          milestones: percentRows
+            .filter((row) => row.name.trim().length > 0 && row.percent)
+            .map((row) => ({ name: row.name, percent: Number(row.percent) })),
+        },
+        token,
+      );
+      setPercentRows([{ name: '', percent: '' }]);
+      await loadMilestones(selectedId);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'สร้างงวดเงินจากเปอร์เซ็นต์ไม่สำเร็จ');
+    } finally {
+      setGeneratingMilestones(false);
     }
   }
 
@@ -683,44 +727,127 @@ export default function ConstructionPage() {
               </div>
 
               {canManage && (
-                <form onSubmit={handleAddMilestone} className="mt-4 grid grid-cols-1 gap-2 border-t border-gray-100 pt-4 sm:grid-cols-4">
-                  <div>
-                    <label className={label}>ชื่องวด</label>
-                    <input
-                      type="text"
-                      required
-                      className={input}
-                      value={milestoneForm.name}
-                      onChange={(e) => setMilestoneForm((f) => ({ ...f, name: e.target.value }))}
-                      placeholder="เช่น งวดที่ 1 - วางเสาเข็ม"
-                    />
-                  </div>
-                  <div>
-                    <label className={label}>จำนวนเงิน (บาท)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      required
-                      className={input}
-                      value={milestoneForm.amount}
-                      onChange={(e) => setMilestoneForm((f) => ({ ...f, amount: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className={label}>วันครบกำหนด (แผน)</label>
-                    <input
-                      type="date"
-                      className={input}
-                      value={milestoneForm.plannedDate}
-                      onChange={(e) => setMilestoneForm((f) => ({ ...f, plannedDate: e.target.value }))}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <button type="submit" disabled={milestoneSaving} className={primaryButton}>
-                      {milestoneSaving ? 'กำลังเพิ่ม...' : 'เพิ่มงวดเงิน'}
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMilestoneMode('single')}
+                      className={milestoneMode === 'single' ? primaryButton : secondaryButton}
+                    >
+                      เพิ่มทีละงวด
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMilestoneMode('percentages')}
+                      className={milestoneMode === 'percentages' ? primaryButton : secondaryButton}
+                    >
+                      สร้างจาก % ในสัญญา
                     </button>
                   </div>
-                </form>
+
+                  {milestoneMode === 'single' ? (
+                    <form onSubmit={handleAddMilestone} className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-4">
+                      <div>
+                        <label className={label}>ชื่องวด</label>
+                        <input
+                          type="text"
+                          required
+                          className={input}
+                          value={milestoneForm.name}
+                          onChange={(e) => setMilestoneForm((f) => ({ ...f, name: e.target.value }))}
+                          placeholder="เช่น งวดที่ 1 - วางเสาเข็ม"
+                        />
+                      </div>
+                      <div>
+                        <label className={label}>จำนวนเงิน (บาท)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          required
+                          className={input}
+                          value={milestoneForm.amount}
+                          onChange={(e) => setMilestoneForm((f) => ({ ...f, amount: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className={label}>วันครบกำหนด (แผน)</label>
+                        <input
+                          type="date"
+                          className={input}
+                          value={milestoneForm.plannedDate}
+                          onChange={(e) => setMilestoneForm((f) => ({ ...f, plannedDate: e.target.value }))}
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button type="submit" disabled={milestoneSaving} className={primaryButton}>
+                          {milestoneSaving ? 'กำลังเพิ่ม...' : 'เพิ่มงวดเงิน'}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleGenerateMilestones} className="mt-4 space-y-3">
+                      <p className="text-xs text-gray-400">
+                        กรอกมูลค่าสัญญารวม แล้วแบ่งเป็นงวดตาม % ที่ระบุไว้ในสัญญาจ้างเหมา (เช่น งวด 1: 15%, งวด 2: 20% ฯลฯ
+                        รวมกันต้องเท่ากับ 100%)
+                      </p>
+                      <div>
+                        <label className={label}>มูลค่าสัญญารวม (บาท)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          required
+                          className={`${input} sm:max-w-xs`}
+                          value={percentTotalContractValue}
+                          onChange={(e) => setPercentTotalContractValue(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        {percentRows.map((row, index) => (
+                          <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_140px_auto]">
+                            <input
+                              type="text"
+                              className={input}
+                              placeholder="เช่น งวดที่ 1 - เสาเข็ม/ฐานราก/คาน"
+                              value={row.name}
+                              onChange={(e) => updatePercentRow(index, { name: e.target.value })}
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className={input}
+                              placeholder="% ของสัญญา"
+                              value={row.percent}
+                              onChange={(e) => updatePercentRow(index, { percent: e.target.value })}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removePercentRow(index)}
+                              className={`${secondaryButton} px-2 py-1 text-xs`}
+                            >
+                              ลบ
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button type="button" onClick={addPercentRow} className={secondaryButton}>
+                          + เพิ่มงวด
+                        </button>
+                        <span className={`text-sm ${Math.abs(percentSum - 100) > 0.1 ? 'text-[#d03b3b]' : 'text-[#1B5E3A]'}`}>
+                          รวม {percentSum}% {Math.abs(percentSum - 100) > 0.1 ? '(ต้องเท่ากับ 100%)' : '✓'}
+                        </span>
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={generatingMilestones || Math.abs(percentSum - 100) > 0.1}
+                        className={primaryButton}
+                      >
+                        {generatingMilestones ? 'กำลังสร้าง...' : 'สร้างงวดเงินทั้งหมด'}
+                      </button>
+                    </form>
+                  )}
+                </div>
               )}
             </div>
           )}

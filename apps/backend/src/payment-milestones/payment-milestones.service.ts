@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreatePaymentMilestoneDto } from './dto/create-payment-milestone.dto';
 import { UpdatePaymentMilestoneDto } from './dto/update-payment-milestone.dto';
+import { GenerateMilestonesDto } from './dto/generate-milestones.dto';
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
 
 @Injectable()
 export class PaymentMilestonesService {
@@ -50,6 +55,41 @@ export class PaymentMilestonesService {
       entityId: created.id,
       after: created,
     });
+    return created;
+  }
+
+  async generateFromPercentages(dto: GenerateMilestonesDto, userId: string) {
+    const totalPercent = round2(dto.milestones.reduce((sum, m) => sum + m.percent, 0));
+    if (Math.abs(totalPercent - 100) > 0.1) {
+      throw new BadRequestException(`เปอร์เซ็นต์รวมต้องเท่ากับ 100% (ตอนนี้รวม ${totalPercent}%)`);
+    }
+
+    const existingCount = await this.prisma.paymentMilestone.count({
+      where: { costCenterId: dto.costCenterId },
+    });
+
+    const created = await this.prisma.$transaction(
+      dto.milestones.map((m, index) =>
+        this.prisma.paymentMilestone.create({
+          data: {
+            costCenterId: dto.costCenterId,
+            sequence: existingCount + index + 1,
+            name: m.name,
+            amount: round2((dto.totalContractValue * m.percent) / 100),
+            plannedDate: m.plannedDate ? new Date(m.plannedDate) : undefined,
+          },
+        }),
+      ),
+    );
+
+    await this.audit.log({
+      userId,
+      action: 'GENERATE_FROM_PERCENTAGES',
+      entityType: 'PaymentMilestone',
+      entityId: dto.costCenterId,
+      after: { count: created.length, totalContractValue: dto.totalContractValue },
+    });
+
     return created;
   }
 
