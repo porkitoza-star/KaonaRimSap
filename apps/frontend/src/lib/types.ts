@@ -298,6 +298,46 @@ export interface ProjectFeasibility {
   summary: FeasibilitySummary;
 }
 
+export interface LedgerImportIssue {
+  sheet: string;
+  row: number;
+  reason: string;
+}
+
+export interface LedgerImportPreview {
+  billCount: number;
+  invoiceCount: number;
+  totalBillAmount: number;
+  totalInvoiceAmount: number;
+  costCentersToCreate: { name: string; type: CostCenterType }[];
+  skippedCount: number;
+  errorCount: number;
+  skipped: LedgerImportIssue[];
+  errors: LedgerImportIssue[];
+  sampleBills: {
+    date: string | null;
+    house: string;
+    category: string;
+    amount: number;
+    description: string;
+  }[];
+  sampleInvoices: {
+    date: string | null;
+    house: string;
+    amount: number;
+    description: string;
+  }[];
+}
+
+export interface LedgerImportCommitResult {
+  createdBills: number;
+  createdInvoices: number;
+  costCentersCreated: number;
+  contactsCreated: number;
+  skipped: number;
+  errors: { context: string; reason: string }[];
+}
+
 export interface WhtCertificate {
   id: string;
   certType: 'PND3' | 'PND53';
