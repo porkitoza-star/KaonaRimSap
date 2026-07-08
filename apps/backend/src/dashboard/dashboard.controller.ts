@@ -40,4 +40,9 @@ export class DashboardController {
   pendingConstructionMilestones() {
     return this.dashboardService.getPendingConstructionMilestones();
   }
+
+  @Get('income-expense-summary')
+  incomeExpenseSummary() {
+    return this.dashboardService.getIncomeExpenseSummary();
+  }
 }

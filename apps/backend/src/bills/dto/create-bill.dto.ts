@@ -25,6 +25,10 @@ export class BillLineDto {
 
   @IsString()
   accountId!: string;
+
+  @IsOptional()
+  @IsString()
+  workCategory?: string;
 }
 
 export class CreateBillDto {

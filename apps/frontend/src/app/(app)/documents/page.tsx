@@ -47,6 +47,7 @@ function ReviewForm({
   const [whtAmount, setWhtAmount] = useState('0');
   const [costCenterId, setCostCenterId] = useState('');
   const [accountId, setAccountId] = useState('');
+  const [workCategory, setWorkCategory] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,6 +69,7 @@ function ReviewForm({
           whtAmount: Number(whtAmount),
           costCenterId,
           accountId,
+          workCategory: workCategory || undefined,
         },
         token,
       );
@@ -157,6 +159,15 @@ function ReviewForm({
               </option>
             ))}
           </select>
+        </div>
+        <div>
+          <label className={label}>หมวดงาน (ไม่บังคับ)</label>
+          <input
+            className={input}
+            placeholder="เช่น งานหน้าต่าง, งานฉาบ, จิปาถะ"
+            value={workCategory}
+            onChange={(e) => setWorkCategory(e.target.value)}
+          />
         </div>
       </div>
       <div className="flex gap-2">

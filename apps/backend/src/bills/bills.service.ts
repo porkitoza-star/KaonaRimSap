@@ -69,6 +69,7 @@ export class BillsService {
             amount: line.amount,
             costCenterId: line.costCenterId,
             accountId: line.accountId,
+            workCategory: line.workCategory,
           })),
         },
       },
