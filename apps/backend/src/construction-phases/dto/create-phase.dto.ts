@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class CreatePhaseDto {
   @IsString()
@@ -15,6 +15,11 @@ export class CreatePhaseDto {
   @IsString()
   @MinLength(1)
   name!: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  contractValue?: number;
 
   @IsOptional()
   @IsString()

@@ -186,6 +186,7 @@ export interface ConstructionPhase {
   sequence: number;
   category: string;
   name: string;
+  contractValue: number;
   plannedStartDate: string | null;
   plannedEndDate: string | null;
   actualStartDate: string | null;
@@ -194,16 +195,48 @@ export interface ConstructionPhase {
   notes: string | null;
 }
 
+export interface ValueCurvePoint {
+  month: string;
+  value: number;
+  cumulativeValue: number;
+  cumulativePercent: number;
+}
+
 export interface ConstructionPhasesSummary {
   overallPercent: number;
   allComplete: boolean;
   leadTimeDays: number | null;
   plannedLeadTimeDays: number | null;
+  totalContractValue: number;
+  monthlyPlan: ValueCurvePoint[];
+  monthlyActual: ValueCurvePoint[];
 }
 
 export interface ConstructionPhasesResponse {
   phases: ConstructionPhase[];
   summary: ConstructionPhasesSummary;
+}
+
+export interface PaymentMilestone {
+  id: string;
+  costCenterId: string;
+  sequence: number;
+  name: string;
+  amount: number;
+  plannedDate: string | null;
+  actualPaidDate: string | null;
+  notes: string | null;
+}
+
+export interface PaymentMilestonesSummary {
+  totalAmount: number;
+  totalReceived: number;
+  totalPending: number;
+}
+
+export interface PaymentMilestonesResponse {
+  milestones: PaymentMilestone[];
+  summary: PaymentMilestonesSummary;
 }
 
 export interface ProjectFeasibility {

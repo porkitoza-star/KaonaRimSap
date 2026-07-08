@@ -139,6 +139,7 @@ model CostCenter {
   materialItems     MaterialItem[]
   constructionPhases ConstructionPhase[]
   feasibilityStudy  ProjectFeasibility?
+  paymentMilestones PaymentMilestone[]
 
   @@map("cost_centers")
 }
@@ -150,6 +151,7 @@ model ConstructionPhase {
   sequence         Int
   category         String
   name             String
+  contractValue    Decimal   @default(0) @db.Decimal(14, 2)
   plannedStartDate DateTime?
   plannedEndDate   DateTime?
   actualStartDate  DateTime?
@@ -160,6 +162,22 @@ model ConstructionPhase {
   updatedAt        DateTime  @updatedAt
 
   @@map("construction_phases")
+}
+
+model PaymentMilestone {
+  id             String    @id @default(uuid())
+  costCenterId   String
+  costCenter     CostCenter @relation(fields: [costCenterId], references: [id])
+  sequence       Int
+  name           String
+  amount         Decimal   @default(0) @db.Decimal(14, 2)
+  plannedDate    DateTime?
+  actualPaidDate DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("payment_milestones")
 }
 
 model ProjectFeasibility {

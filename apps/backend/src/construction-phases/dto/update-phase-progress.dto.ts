@@ -1,6 +1,11 @@
-import { IsDateString, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsDateString, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class UpdatePhaseProgressDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  contractValue?: number;
+
   @IsOptional()
   @IsDateString()
   plannedStartDate?: string;

@@ -19,6 +19,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { MaterialsModule } from './materials/materials.module';
 import { ConstructionPhasesModule } from './construction-phases/construction-phases.module';
 import { FeasibilityModule } from './feasibility/feasibility.module';
+import { PaymentMilestonesModule } from './payment-milestones/payment-milestones.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { FeasibilityModule } from './feasibility/feasibility.module';
     MaterialsModule,
     ConstructionPhasesModule,
     FeasibilityModule,
+    PaymentMilestonesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

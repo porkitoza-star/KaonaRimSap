@@ -9,6 +9,56 @@ function daysBetween(start: Date, end: Date): number {
   return Math.round((end.getTime() - start.getTime()) / 86_400_000);
 }
 
+function monthKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthsBetween(start: Date, end: Date): Date[] {
+  const months: Date[] = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  const last = new Date(end.getFullYear(), end.getMonth(), 1);
+  while (cursor <= last) {
+    months.push(new Date(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return months;
+}
+
+interface CurvePhaseInput {
+  value: number;
+  start: Date | null;
+  end: Date | null;
+}
+
+function buildValueCurve(inputs: CurvePhaseInput[], totalValue: number) {
+  const valueByMonth = new Map<string, number>();
+
+  for (const { value, start, end } of inputs) {
+    if (value <= 0) continue;
+    if (!start && !end) continue;
+    const rangeStart = start ?? end!;
+    const rangeEnd = end ?? start!;
+    const months = monthsBetween(rangeStart, rangeEnd);
+    const share = value / months.length;
+    for (const m of months) {
+      const key = monthKey(m);
+      valueByMonth.set(key, (valueByMonth.get(key) ?? 0) + share);
+    }
+  }
+
+  const sortedKeys = [...valueByMonth.keys()].sort();
+  let cumulative = 0;
+  return sortedKeys.map((key) => {
+    cumulative += valueByMonth.get(key)!;
+    return {
+      month: key,
+      value: Math.round(valueByMonth.get(key)! * 100) / 100,
+      cumulativeValue: Math.round(cumulative * 100) / 100,
+      cumulativePercent: totalValue > 0 ? Math.round((cumulative / totalValue) * 1000) / 10 : 0,
+    };
+  });
+}
+
 @Injectable()
 export class ConstructionPhasesService {
   constructor(
@@ -49,6 +99,27 @@ export class ConstructionPhasesService {
           )
         : null;
 
+    const totalContractValue = phases.reduce((sum, p) => sum + Number(p.contractValue), 0);
+
+    const monthlyPlan = buildValueCurve(
+      phases.map((p) => ({
+        value: Number(p.contractValue),
+        start: p.plannedStartDate,
+        end: p.plannedEndDate,
+      })),
+      totalContractValue,
+    );
+
+    const now = new Date();
+    const monthlyActual = buildValueCurve(
+      phases.map((p) => ({
+        value: (Number(p.contractValue) * p.percentComplete) / 100,
+        start: p.actualStartDate,
+        end: p.actualEndDate ?? (p.actualStartDate ? now : null),
+      })),
+      totalContractValue,
+    );
+
     return {
       phases,
       summary: {
@@ -56,6 +127,9 @@ export class ConstructionPhasesService {
         allComplete,
         leadTimeDays,
         plannedLeadTimeDays,
+        totalContractValue,
+        monthlyPlan,
+        monthlyActual,
       },
     };
   }
@@ -112,6 +186,7 @@ export class ConstructionPhasesService {
     const updated = await this.prisma.constructionPhase.update({
       where: { id },
       data: {
+        contractValue: dto.contractValue,
         plannedStartDate: dto.plannedStartDate ? new Date(dto.plannedStartDate) : undefined,
         plannedEndDate: dto.plannedEndDate ? new Date(dto.plannedEndDate) : undefined,
         actualStartDate: dto.actualStartDate ? new Date(dto.actualStartDate) : undefined,
