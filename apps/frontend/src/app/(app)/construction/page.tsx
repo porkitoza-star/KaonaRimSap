@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api, ApiError } from '@/lib/api';
 import type {
+  BoqValueByCategory,
   ConstructionPhase,
   ConstructionPhasesResponse,
   CostCenter,
@@ -179,6 +180,7 @@ export default function ConstructionPage() {
   });
   const [costItemsDraft, setCostItemsDraft] = useState<FeasibilityCostItem[]>([]);
   const [feasibilitySaving, setFeasibilitySaving] = useState(false);
+  const [pullingBoq, setPullingBoq] = useState(false);
 
   const [milestonesData, setMilestonesData] = useState<PaymentMilestonesResponse | null>(null);
   const [milestoneForm, setMilestoneForm] = useState({ name: '', amount: '0', plannedDate: '' });
@@ -387,6 +389,34 @@ export default function ConstructionPage() {
 
   function removeCostItemRow(index: number) {
     setCostItemsDraft((rows) => rows.filter((_, i) => i !== index));
+  }
+
+  async function handlePullBoq() {
+    if (!token || !selectedId) return;
+    setPullingBoq(true);
+    setError(null);
+    try {
+      const result = await api.get<BoqValueByCategory>(
+        `/materials/boq-value?projectCostCenterId=${selectedId}`,
+        token,
+      );
+      const newRows = (Object.entries(result.byCategory) as [FeasibilityCostCategory, number][])
+        .filter(([, amount]) => amount > 0)
+        .map(([category, amount]) => ({
+          category,
+          name: 'ยอดรวม BOQ จากวัสดุก่อสร้าง (ดึงอัตโนมัติ)',
+          amount,
+        }));
+      if (newRows.length === 0) {
+        setError('ยังไม่มีรายการวัสดุก่อสร้างที่มีราคาในบ้านของโครงการนี้');
+      } else {
+        setCostItemsDraft((rows) => [...rows, ...newRows]);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'ดึงยอด BOQ ไม่สำเร็จ');
+    } finally {
+      setPullingBoq(false);
+    }
   }
 
   async function handleFeasibilitySave(e: FormEvent) {
@@ -826,9 +856,17 @@ export default function ConstructionPage() {
                   </div>
                 ))}
               </div>
-              <button type="button" onClick={addCostItemRow} className={`${secondaryButton} mt-2`}>
-                + เพิ่มรายการต้นทุน
-              </button>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button type="button" onClick={addCostItemRow} className={secondaryButton}>
+                  + เพิ่มรายการต้นทุน
+                </button>
+                <button type="button" disabled={pullingBoq} onClick={handlePullBoq} className={secondaryButton}>
+                  {pullingBoq ? 'กำลังดึงยอด...' : 'ดึงยอด BOQ จากบ้านในโครงการ'}
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                ดึงยอดจากมูลค่ารายการวัสดุก่อสร้าง (ปริมาณตามแผน × ราคาวัสดุ+ค่าแรง) ของทุกบ้านในโครงการนี้ มาเป็นรายการต้นทุนเพิ่มให้ตรวจสอบก่อนบันทึก
+              </p>
             </div>
 
             <div>

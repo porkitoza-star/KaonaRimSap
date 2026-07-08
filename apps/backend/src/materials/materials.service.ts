@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, StockTransactionType } from '@prisma/client';
+import { FeasibilityCostCategory, Prisma, StockTransactionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { buildExcelBuffer } from '../common/excel-export.util';
@@ -14,6 +14,18 @@ function signedQuantity(type: StockTransactionType, quantity: number): number {
 
 function currentStock(transactions: { type: StockTransactionType; quantity: Prisma.Decimal | number }[]): number {
   return transactions.reduce((sum, t) => sum + signedQuantity(t.type, Number(t.quantity)), 0);
+}
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+function totalValue(item: {
+  plannedQuantity: Prisma.Decimal | number;
+  materialUnitPrice: Prisma.Decimal | number;
+  laborUnitPrice: Prisma.Decimal | number;
+}): number {
+  return round2(Number(item.plannedQuantity) * (Number(item.materialUnitPrice) + Number(item.laborUnitPrice)));
 }
 
 @Injectable()
@@ -32,7 +44,40 @@ export class MaterialsService {
     return items.map((item) => ({
       ...item,
       currentStock: currentStock(item.transactions),
+      totalValue: totalValue(item),
     }));
+  }
+
+  async getBoqValueForProject(projectCostCenterId: string) {
+    const project = await this.prisma.costCenter.findUnique({
+      where: { id: projectCostCenterId },
+      include: { children: true },
+    });
+    if (!project) {
+      throw new NotFoundException('ไม่พบ Cost Center นี้');
+    }
+
+    const houseIds = project.children.map((c) => c.id);
+    const items =
+      houseIds.length > 0
+        ? await this.prisma.materialItem.findMany({ where: { costCenterId: { in: houseIds } } })
+        : [];
+
+    const byCategory: Record<FeasibilityCostCategory, number> = {
+      LAND: 0,
+      CONSTRUCTION: 0,
+      INFRASTRUCTURE: 0,
+      OVERHEAD: 0,
+      FINANCING: 0,
+    };
+    for (const item of items) {
+      byCategory[item.feasibilityCategory] = round2(byCategory[item.feasibilityCategory] + totalValue(item));
+    }
+
+    return {
+      byCategory,
+      total: round2(Object.values(byCategory).reduce((sum, v) => sum + v, 0)),
+    };
   }
 
   async findLowStock() {
@@ -51,7 +96,7 @@ export class MaterialsService {
     if (!item) {
       throw new NotFoundException('ไม่พบรายการวัสดุนี้');
     }
-    return { ...item, currentStock: currentStock(item.transactions) };
+    return { ...item, currentStock: currentStock(item.transactions), totalValue: totalValue(item) };
   }
 
   async create(dto: CreateMaterialItemDto, userId: string) {
@@ -63,6 +108,9 @@ export class MaterialsService {
         unit: dto.unit,
         plannedQuantity: dto.plannedQuantity,
         reorderThreshold: dto.reorderThreshold ?? 0,
+        materialUnitPrice: dto.materialUnitPrice ?? 0,
+        laborUnitPrice: dto.laborUnitPrice ?? 0,
+        feasibilityCategory: dto.feasibilityCategory ?? FeasibilityCostCategory.CONSTRUCTION,
         notes: dto.notes,
       },
     });
@@ -145,6 +193,10 @@ export class MaterialsService {
         { header: 'ปริมาณตามแผน', value: (r: (typeof items)[number]) => Number(r.plannedQuantity) },
         { header: 'คงเหลือ', value: (r: (typeof items)[number]) => r.currentStock },
         { header: 'จุดสั่งซื้อเพิ่ม', value: (r: (typeof items)[number]) => Number(r.reorderThreshold) },
+        { header: 'ราคาวัสดุ/หน่วย', value: (r: (typeof items)[number]) => Number(r.materialUnitPrice) },
+        { header: 'ราคาค่าแรง/หน่วย', value: (r: (typeof items)[number]) => Number(r.laborUnitPrice) },
+        { header: 'มูลค่ารวม', value: (r: (typeof items)[number]) => r.totalValue },
+        { header: 'หมวด Feasibility', value: (r: (typeof items)[number]) => r.feasibilityCategory },
         {
           header: 'ควรสั่งเพิ่ม',
           value: (r: (typeof items)[number]) =>

@@ -27,6 +27,11 @@ export class MaterialsController {
     return this.materialsService.findLowStock();
   }
 
+  @Get('boq-value')
+  getBoqValueForProject(@Query('projectCostCenterId') projectCostCenterId: string) {
+    return this.materialsService.getBoqValueForProject(projectCostCenterId);
+  }
+
   @Get('export')
   async export(@Res() res: Response) {
     const buffer = await this.materialsService.exportExcel();

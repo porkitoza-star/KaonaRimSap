@@ -220,17 +220,20 @@ model FeasibilityCostItem {
 }
 
 model MaterialItem {
-  id               String   @id @default(uuid())
-  costCenterId     String
-  costCenter       CostCenter @relation(fields: [costCenterId], references: [id])
-  category         String
-  name             String
-  unit             String
-  plannedQuantity  Decimal  @default(0)
-  reorderThreshold Decimal  @default(0)
-  notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                  String                  @id @default(uuid())
+  costCenterId        String
+  costCenter          CostCenter              @relation(fields: [costCenterId], references: [id])
+  category            String
+  name                String
+  unit                String
+  plannedQuantity     Decimal                 @default(0)
+  reorderThreshold    Decimal                 @default(0)
+  materialUnitPrice   Decimal                 @default(0) @db.Decimal(15, 2)
+  laborUnitPrice      Decimal                 @default(0) @db.Decimal(15, 2)
+  feasibilityCategory FeasibilityCostCategory @default(CONSTRUCTION)
+  notes               String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
 
   transactions StockTransaction[]
 

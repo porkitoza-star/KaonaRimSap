@@ -3,8 +3,8 @@
 import { Fragment, useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api, ApiError } from '@/lib/api';
-import type { CostCenter, MaterialItem, StockTransactionType } from '@/lib/types';
-import { formatDate } from '@/lib/format';
+import type { CostCenter, FeasibilityCostCategory, MaterialItem, StockTransactionType } from '@/lib/types';
+import { formatDate, formatThb } from '@/lib/format';
 import { card, input, label, primaryButton, secondaryButton, errorBanner, badge } from '@/lib/ui';
 import { ExportButton } from '@/components/export-button';
 
@@ -13,6 +13,14 @@ const TX_LABELS: Record<StockTransactionType, string> = {
   RECEIVE: 'รับเข้า',
   USE: 'เบิกใช้',
   ADJUST: 'ปรับปรุงยอด',
+};
+
+const FEASIBILITY_CATEGORY_LABELS: Record<FeasibilityCostCategory, string> = {
+  LAND: 'ที่ดิน',
+  CONSTRUCTION: 'ก่อสร้าง',
+  INFRASTRUCTURE: 'สาธารณูปโภคส่วนกลาง',
+  OVERHEAD: 'ค่าใช้จ่ายโครงการ',
+  FINANCING: 'ต้นทุนทางการเงิน',
 };
 
 export default function MaterialsPage() {
@@ -36,6 +44,9 @@ export default function MaterialsPage() {
   const [unit, setUnit] = useState('');
   const [plannedQuantity, setPlannedQuantity] = useState('');
   const [reorderThreshold, setReorderThreshold] = useState('0');
+  const [materialUnitPrice, setMaterialUnitPrice] = useState('0');
+  const [laborUnitPrice, setLaborUnitPrice] = useState('0');
+  const [feasibilityCategory, setFeasibilityCategory] = useState<FeasibilityCostCategory>('CONSTRUCTION');
   const [submitting, setSubmitting] = useState(false);
 
   const [txType, setTxType] = useState<StockTransactionType>('RECEIVE');
@@ -80,6 +91,9 @@ export default function MaterialsPage() {
           unit,
           plannedQuantity: Number(plannedQuantity),
           reorderThreshold: Number(reorderThreshold),
+          materialUnitPrice: Number(materialUnitPrice),
+          laborUnitPrice: Number(laborUnitPrice),
+          feasibilityCategory,
         },
         token,
       );
@@ -88,6 +102,9 @@ export default function MaterialsPage() {
       setUnit('');
       setPlannedQuantity('');
       setReorderThreshold('0');
+      setMaterialUnitPrice('0');
+      setLaborUnitPrice('0');
+      setFeasibilityCategory('CONSTRUCTION');
       await reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'เพิ่มรายการวัสดุไม่สำเร็จ');
@@ -177,6 +194,7 @@ export default function MaterialsPage() {
                 <th className="py-2 pr-4 font-medium">วัสดุ</th>
                 <th className="py-2 pr-4 text-right font-medium">ตามแผน</th>
                 <th className="py-2 pr-4 text-right font-medium">คงเหลือ</th>
+                <th className="py-2 pr-4 text-right font-medium">มูลค่ารวม (บาท)</th>
                 <th className="py-2 font-medium"></th>
               </tr>
             </thead>
@@ -201,6 +219,9 @@ export default function MaterialsPage() {
                         {item.currentStock} {item.unit}
                       </span>
                     </td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-xs text-gray-500">
+                      {formatThb(item.totalValue)}
+                    </td>
                     <td className="py-2 text-right">
                       {canManage && (
                         <button
@@ -214,7 +235,7 @@ export default function MaterialsPage() {
                   </tr>
                   {expandedId === item.id && (
                     <tr>
-                      <td colSpan={6} className="bg-gray-50 px-4 py-4">
+                      <td colSpan={7} className="bg-gray-50 px-4 py-4">
                         <form onSubmit={handleTransaction} className="grid grid-cols-1 gap-2 sm:grid-cols-5">
                           <select
                             className={input}
@@ -281,7 +302,7 @@ export default function MaterialsPage() {
               ))}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-4 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="py-4 text-center text-sm text-gray-400">
                     ยังไม่มีรายการวัสดุ
                   </td>
                 </tr>
@@ -356,6 +377,42 @@ export default function MaterialsPage() {
                   value={reorderThreshold}
                   onChange={(e) => setReorderThreshold(e.target.value)}
                 />
+              </div>
+              <div>
+                <label className={label}>ราคาวัสดุ/หน่วย (บาท)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className={input}
+                  value={materialUnitPrice}
+                  onChange={(e) => setMaterialUnitPrice(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={label}>ราคาค่าแรง/หน่วย (บาท)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className={input}
+                  value={laborUnitPrice}
+                  onChange={(e) => setLaborUnitPrice(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={label}>หมวด Feasibility (สำหรับรวมยอดเข้าโครงการ)</label>
+                <select
+                  className={input}
+                  value={feasibilityCategory}
+                  onChange={(e) => setFeasibilityCategory(e.target.value as FeasibilityCostCategory)}
+                >
+                  {Object.entries(FEASIBILITY_CATEGORY_LABELS).map(([value, labelText]) => (
+                    <option key={value} value={value}>
+                      {labelText}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <button type="submit" disabled={submitting} className={primaryButton}>

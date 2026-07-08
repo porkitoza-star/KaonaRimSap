@@ -1,4 +1,5 @@
-import { IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { FeasibilityCostCategory } from '@prisma/client';
 
 export class CreateMaterialItemDto {
   @IsString()
@@ -24,6 +25,20 @@ export class CreateMaterialItemDto {
   @IsNumber()
   @Min(0)
   reorderThreshold?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  materialUnitPrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  laborUnitPrice?: number;
+
+  @IsOptional()
+  @IsEnum(FeasibilityCostCategory)
+  feasibilityCategory?: FeasibilityCostCategory;
 
   @IsOptional()
   @IsString()

@@ -173,8 +173,12 @@ export interface MaterialItem {
   unit: string;
   plannedQuantity: string;
   reorderThreshold: string;
+  materialUnitPrice: string;
+  laborUnitPrice: string;
+  feasibilityCategory: FeasibilityCostCategory;
   notes: string | null;
   currentStock: number;
+  totalValue: number;
   transactions?: StockTransaction[];
 }
 
@@ -266,6 +270,11 @@ export interface FeasibilitySummary {
   roePercent: number | null;
   costPerUnit: number;
   profitPerUnit: number;
+}
+
+export interface BoqValueByCategory {
+  byCategory: Record<FeasibilityCostCategory, number>;
+  total: number;
 }
 
 export interface ProjectFeasibility {
