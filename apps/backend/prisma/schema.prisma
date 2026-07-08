@@ -137,8 +137,45 @@ model CostCenter {
   billLines         BillLine[]
   documents         Document[]
   materialItems     MaterialItem[]
+  constructionPhases ConstructionPhase[]
+  feasibilityStudy  ProjectFeasibility?
 
   @@map("cost_centers")
+}
+
+model ConstructionPhase {
+  id               String    @id @default(uuid())
+  costCenterId     String
+  costCenter       CostCenter @relation(fields: [costCenterId], references: [id])
+  sequence         Int
+  category         String
+  name             String
+  plannedStartDate DateTime?
+  plannedEndDate   DateTime?
+  actualStartDate  DateTime?
+  actualEndDate    DateTime?
+  percentComplete  Int       @default(0)
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("construction_phases")
+}
+
+model ProjectFeasibility {
+  id                      String   @id @default(uuid())
+  costCenterId            String   @unique
+  costCenter              CostCenter @relation(fields: [costCenterId], references: [id])
+  houseCount              Int      @default(1)
+  constructionCostPerUnit Decimal  @default(0) @db.Decimal(15, 2)
+  landCostPerUnit         Decimal  @default(0) @db.Decimal(15, 2)
+  otherCostPerUnit        Decimal  @default(0) @db.Decimal(15, 2)
+  sellingPricePerUnit     Decimal  @default(0) @db.Decimal(15, 2)
+  notes                   String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@map("project_feasibility")
 }
 
 model MaterialItem {

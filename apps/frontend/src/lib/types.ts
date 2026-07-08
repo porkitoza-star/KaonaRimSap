@@ -178,6 +178,49 @@ export interface MaterialItem {
   transactions?: StockTransaction[];
 }
 
+export type HouseTemplateType = 'SINGLE_STORY' | 'TWO_STORY';
+
+export interface ConstructionPhase {
+  id: string;
+  costCenterId: string;
+  sequence: number;
+  category: string;
+  name: string;
+  plannedStartDate: string | null;
+  plannedEndDate: string | null;
+  actualStartDate: string | null;
+  actualEndDate: string | null;
+  percentComplete: number;
+  notes: string | null;
+}
+
+export interface ConstructionPhasesSummary {
+  overallPercent: number;
+  allComplete: boolean;
+  leadTimeDays: number | null;
+  plannedLeadTimeDays: number | null;
+}
+
+export interface ConstructionPhasesResponse {
+  phases: ConstructionPhase[];
+  summary: ConstructionPhasesSummary;
+}
+
+export interface ProjectFeasibility {
+  houseCount: number;
+  constructionCostPerUnit: number;
+  landCostPerUnit: number;
+  otherCostPerUnit: number;
+  sellingPricePerUnit: number;
+  notes?: string | null;
+  costPerUnit: number;
+  profitPerUnit: number;
+  marginPercent: number;
+  totalCost: number;
+  totalRevenue: number;
+  totalProfit: number;
+}
+
 export interface WhtCertificate {
   id: string;
   certType: 'PND3' | 'PND53';

@@ -23,6 +23,12 @@ async function request<T>(
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 
+  if (res.status === 401 && token && typeof window !== 'undefined') {
+    localStorage.removeItem('kaonaa_token');
+    localStorage.removeItem('kaonaa_user');
+    window.location.href = '/login';
+  }
+
   if (!res.ok) {
     let message = res.statusText;
     try {
@@ -50,4 +56,6 @@ export const api = {
     ),
   patch: <T>(path: string, body?: unknown, token?: string | null) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body ?? {}) }, token),
+  put: <T>(path: string, body?: unknown, token?: string | null) =>
+    request<T>(path, { method: 'PUT', body: JSON.stringify(body ?? {}) }, token),
 };
