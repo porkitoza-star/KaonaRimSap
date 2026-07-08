@@ -35,4 +35,9 @@ export class DashboardController {
   cashFlowForecast(@Query('days') days?: string) {
     return this.dashboardService.getCashFlowForecast(days ? Number(days) : 90);
   }
+
+  @Get('pending-construction-milestones')
+  pendingConstructionMilestones() {
+    return this.dashboardService.getPendingConstructionMilestones();
+  }
 }
