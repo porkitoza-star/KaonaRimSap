@@ -7,6 +7,7 @@ import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-use
 import { PaymentMilestonesService } from './payment-milestones.service';
 import { CreatePaymentMilestoneDto } from './dto/create-payment-milestone.dto';
 import { UpdatePaymentMilestoneDto } from './dto/update-payment-milestone.dto';
+import { GenerateMilestonesDto } from './dto/generate-milestones.dto';
 
 const MANAGE_ROLES = [Role.PROJECT_MANAGER, Role.ACCOUNTANT, Role.CFO, Role.CEO];
 
@@ -24,6 +25,12 @@ export class PaymentMilestonesController {
   @Roles(...MANAGE_ROLES)
   create(@Body() dto: CreatePaymentMilestoneDto, @CurrentUser() user: AuthenticatedUser) {
     return this.milestonesService.create(dto, user.userId);
+  }
+
+  @Post('generate-from-percentages')
+  @Roles(...MANAGE_ROLES)
+  generateFromPercentages(@Body() dto: GenerateMilestonesDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.milestonesService.generateFromPercentages(dto, user.userId);
   }
 
   @Patch(':id')
