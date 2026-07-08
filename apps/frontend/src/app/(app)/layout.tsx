@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/invoices', label: 'ใบแจ้งหนี้ (AR)' },
   { href: '/bills', label: 'บิล (AP)' },
   { href: '/documents', label: 'เอกสาร / OCR' },
+  { href: '/materials', label: 'วัสดุก่อสร้าง / สต๊อก' },
   { href: '/payments', label: 'การจ่าย-รับเงิน' },
   { href: '/wht-certificates', label: 'ใบหัก ณ ที่จ่าย' },
   { href: '/profile', label: 'โปรไฟล์ของฉัน' },

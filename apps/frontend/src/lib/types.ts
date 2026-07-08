@@ -151,6 +151,33 @@ export interface Payment {
   approvals: PaymentApproval[];
 }
 
+export type StockTransactionType = 'RECEIVE' | 'USE' | 'ADJUST';
+
+export interface StockTransaction {
+  id: string;
+  materialItemId: string;
+  type: StockTransactionType;
+  quantity: string;
+  transactionDate: string;
+  notes: string | null;
+  createdBy?: { name: string };
+  createdAt: string;
+}
+
+export interface MaterialItem {
+  id: string;
+  costCenterId: string;
+  costCenter?: CostCenter;
+  category: string;
+  name: string;
+  unit: string;
+  plannedQuantity: string;
+  reorderThreshold: string;
+  notes: string | null;
+  currentStock: number;
+  transactions?: StockTransaction[];
+}
+
 export interface WhtCertificate {
   id: string;
   certType: 'PND3' | 'PND53';
