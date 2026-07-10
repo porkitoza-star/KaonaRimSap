@@ -6,27 +6,40 @@ import { RequireAuth } from '@/lib/require-auth';
 import { useAuth } from '@/lib/auth-context';
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'แดชบอร์ด' },
-  { href: '/cost-centers', label: 'ผังบัญชี / Cost Center' },
-  { href: '/contacts', label: 'คู่ค้า' },
-  { href: '/invoices', label: 'ใบแจ้งหนี้ (AR)' },
-  { href: '/bills', label: 'บิล (AP)' },
-  { href: '/documents', label: 'เอกสาร / OCR' },
-  { href: '/materials', label: 'วัสดุก่อสร้าง / สต๊อก' },
-  { href: '/boq-templates', label: 'เทมเพลต BOQ มาตรฐาน' },
-  { href: '/construction', label: 'ขั้นตอนงาน / Timeline / Feasibility' },
-  { href: '/payments', label: 'การจ่าย-รับเงิน' },
-  { href: '/wht-certificates', label: 'ใบหัก ณ ที่จ่าย' },
-  { href: '/ledger-import', label: 'นำเข้าบัญชีจาก Excel' },
-  { href: '/profile', label: 'โปรไฟล์ของฉัน' },
+  { href: '/dashboard', label: 'แดชบอร์ด', shortLabel: 'แดชบอร์ด', icon: '📊', color: '#007AFF' },
+  { href: '/cost-centers', label: 'ผังบัญชี / Cost Center', shortLabel: 'ผังบัญชี', icon: '🗂️', color: '#8E8E93' },
+  { href: '/contacts', label: 'คู่ค้า', shortLabel: 'คู่ค้า', icon: '👥', color: '#FF9500' },
+  { href: '/invoices', label: 'ใบแจ้งหนี้ (AR)', shortLabel: 'ใบแจ้งหนี้', icon: '🧾', color: '#00C7BE' },
+  { href: '/bills', label: 'บิล (AP)', shortLabel: 'บิล', icon: '💳', color: '#FF3B30' },
+  { href: '/documents', label: 'เอกสาร / OCR', shortLabel: 'เอกสาร', icon: '📄', color: '#AF52DE' },
+  { href: '/materials', label: 'วัสดุก่อสร้าง / สต๊อก', shortLabel: 'วัสดุ/สต๊อก', icon: '🧱', color: '#A2845E' },
+  { href: '/boq-templates', label: 'เทมเพลต BOQ มาตรฐาน', shortLabel: 'เทมเพลต BOQ', icon: '📐', color: '#5AC8FA' },
+  { href: '/construction', label: 'ขั้นตอนงาน / Timeline / Feasibility', shortLabel: 'งานก่อสร้าง', icon: '🏗️', color: '#FF9F0A' },
+  { href: '/payments', label: 'การจ่าย-รับเงิน', shortLabel: 'จ่าย-รับเงิน', icon: '💰', color: '#34C759' },
+  { href: '/wht-certificates', label: 'ใบหัก ณ ที่จ่าย', shortLabel: 'หัก ณ ที่จ่าย', icon: '🧮', color: '#636366' },
+  { href: '/ledger-import', label: 'นำเข้าบัญชีจาก Excel', shortLabel: 'นำเข้า Excel', icon: '📥', color: '#30B0C7' },
+  { href: '/profile', label: 'โปรไฟล์ของฉัน', shortLabel: 'โปรไฟล์', icon: '👤', color: '#5856D6' },
 ];
+
+function AppIcon({ icon, color }: { icon: string; color: string }) {
+  return (
+    <span
+      className="flex h-14 w-14 items-center justify-center rounded-[16px] text-2xl shadow-sm"
+      style={{ backgroundColor: color }}
+    >
+      {icon}
+    </span>
+  );
+}
 
 function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
 
   const navItems =
-    user?.role === 'CEO' ? [...NAV_ITEMS, { href: '/users', label: 'จัดการผู้ใช้งาน' }] : NAV_ITEMS;
+    user?.role === 'CEO'
+      ? [...NAV_ITEMS, { href: '/users', label: 'จัดการผู้ใช้งาน', shortLabel: 'ผู้ใช้งาน', icon: '⚙️', color: '#8E8E93' }]
+      : NAV_ITEMS;
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -37,7 +50,29 @@ function AppShell({ children }: { children: React.ReactNode }) {
             {user?.name} ({user?.role})
           </p>
         </div>
-        <nav className="flex flex-row flex-wrap gap-1 px-2 pb-2 md:flex-col md:pb-4">
+
+        {/* Mobile: iOS-style home screen grid of app icons */}
+        <nav className="grid grid-cols-4 gap-3 px-3 py-4 sm:grid-cols-5 md:hidden">
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1">
+              <AppIcon icon={item.icon} color={item.color} />
+              <span
+                className={`line-clamp-2 text-center text-[11px] leading-tight ${
+                  pathname.startsWith(item.href) ? 'font-semibold text-[#1B5E3A]' : 'text-gray-700'
+                }`}
+              >
+                {item.shortLabel}
+              </span>
+            </Link>
+          ))}
+          <button type="button" onClick={logout} className="flex flex-col items-center gap-1">
+            <AppIcon icon="🚪" color="#FF453A" />
+            <span className="text-center text-[11px] leading-tight text-gray-700">ออกจากระบบ</span>
+          </button>
+        </nav>
+
+        {/* Desktop: text sidebar */}
+        <nav className="hidden md:flex md:flex-col md:gap-1 md:px-2 md:pb-4">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -52,7 +87,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="px-4 pb-4">
+        <div className="hidden px-4 pb-4 md:block">
           <button
             onClick={logout}
             className="text-sm text-gray-500 underline underline-offset-2 hover:text-gray-800"
