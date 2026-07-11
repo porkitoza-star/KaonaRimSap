@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api, ApiError } from '@/lib/api';
 import { useAvatarUrl } from '@/lib/use-avatar-url';
+import { PasswordInput } from '@/components/password-input';
 
 export default function ProfilePage() {
   const { user, token, updateUser } = useAuth();
@@ -147,33 +148,30 @@ export default function ProfilePage() {
         <form onSubmit={handlePasswordSubmit} className="mt-4 space-y-3">
           <div>
             <label className="block text-sm font-medium text-gray-700">รหัสผ่านปัจจุบัน</label>
-            <input
-              type="password"
+            <PasswordInput
               required
               value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
+              onChange={setCurrentPassword}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#1B5E3A] focus:outline-none focus:ring-1 focus:ring-[#1B5E3A]"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">รหัสผ่านใหม่</label>
-            <input
-              type="password"
+            <PasswordInput
               required
               minLength={8}
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={setNewPassword}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#1B5E3A] focus:outline-none focus:ring-1 focus:ring-[#1B5E3A]"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">ยืนยันรหัสผ่านใหม่</label>
-            <input
-              type="password"
+            <PasswordInput
               required
               minLength={8}
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={setConfirmPassword}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#1B5E3A] focus:outline-none focus:ring-1 focus:ring-[#1B5E3A]"
             />
           </div>

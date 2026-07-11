@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { ApiError } from '@/lib/api';
+import { PasswordInput } from '@/components/password-input';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -55,13 +56,12 @@ export default function LoginPage() {
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
               รหัสผ่าน
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               required
               minLength={8}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#1B5E3A] focus:outline-none focus:ring-1 focus:ring-[#1B5E3A]"
               placeholder="••••••••"
             />
