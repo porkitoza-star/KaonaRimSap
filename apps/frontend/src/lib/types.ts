@@ -104,20 +104,35 @@ export interface Bill {
   lines?: BillLine[];
 }
 
+export interface OcrBillData {
+  documentNumber?: string;
+  issueDate?: string;
+  contactName?: string;
+  taxId?: string;
+  subtotal?: number;
+  vatAmount?: number;
+  totalAmount?: number;
+}
+
+export interface OcrBoqItem {
+  category?: string;
+  name: string;
+  unit?: string;
+  quantity?: number;
+  unitPrice?: number;
+  amount?: number;
+}
+
+export interface OcrBoqData {
+  items: OcrBoqItem[];
+}
+
 export interface DocumentRecord {
   id: string;
   fileUrl: string;
   fileType: string;
   category: DocumentCategory;
-  ocrRawJson: {
-    documentNumber?: string;
-    issueDate?: string;
-    contactName?: string;
-    taxId?: string;
-    subtotal?: number;
-    vatAmount?: number;
-    totalAmount?: number;
-  } | null;
+  ocrRawJson: (OcrBillData & Partial<OcrBoqData>) | null;
   status: DocumentStatus;
   notes: string | null;
   createdAt: string;

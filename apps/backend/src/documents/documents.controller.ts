@@ -21,6 +21,7 @@ import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-use
 import { DocumentsService } from './documents.service';
 import { ConfirmDocumentDto } from './dto/confirm-document.dto';
 import { RejectDocumentDto } from './dto/reject-document.dto';
+import { ImportBoqItemsDto } from './dto/import-boq-items.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('documents')
@@ -82,6 +83,16 @@ export class DocumentsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.documentsService.confirm(id, dto, user.userId);
+  }
+
+  @Post(':id/import-boq-items')
+  @Roles(Role.ACCOUNTANT, Role.PROJECT_MANAGER, Role.CFO, Role.CEO)
+  importBoqItems(
+    @Param('id') id: string,
+    @Body() dto: ImportBoqItemsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.documentsService.importBoqItems(id, dto, user.userId);
   }
 
   @Post(':id/reject')

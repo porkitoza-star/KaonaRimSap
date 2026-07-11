@@ -182,6 +182,100 @@ function ReviewForm({
   );
 }
 
+function BoqItemsPanel({
+  doc,
+  costCenters,
+  token,
+  onDone,
+}: {
+  doc: DocumentRecord;
+  costCenters: CostCenter[];
+  token: string;
+  onDone: () => void;
+}) {
+  const items = doc.ocrRawJson?.items ?? [];
+  const [costCenterId, setCostCenterId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+
+  async function handleImport() {
+    if (!costCenterId) {
+      setError('กรุณาเลือก Cost Center ก่อนนำเข้า');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await api.post<{ createdCount: number }>(
+        `/documents/${doc.id}/import-boq-items`,
+        {
+          costCenterId,
+          items: items.map((it) => ({
+            category: it.category,
+            name: it.name,
+            unit: it.unit,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+          })),
+        },
+        token,
+      );
+      setResult(`นำเข้าเป็นรายการวัสดุแล้ว ${res.createdCount} รายการ`);
+      onDone();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'นำเข้ารายการไม่สำเร็จ');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 space-y-3 rounded-lg border border-gray-100 bg-gray-50 p-4">
+      {error && <p className={errorBanner}>{error}</p>}
+      {result && <p className="text-sm text-green-700">{result}</p>}
+      <p className="text-xs font-medium text-gray-500">รายการที่อ่านได้จากเอกสาร ({items.length} รายการ)</p>
+      <div className="max-h-64 overflow-y-auto rounded border border-gray-200 bg-white">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-gray-100 text-gray-500">
+            <tr>
+              <th className="px-2 py-1">หมวดงาน</th>
+              <th className="px-2 py-1">รายการ</th>
+              <th className="px-2 py-1">หน่วย</th>
+              <th className="px-2 py-1 text-right">ปริมาณ</th>
+              <th className="px-2 py-1 text-right">ราคา/หน่วย</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((it, i) => (
+              <tr key={i} className="border-t border-gray-100">
+                <td className="px-2 py-1">{it.category ?? '-'}</td>
+                <td className="px-2 py-1">{it.name}</td>
+                <td className="px-2 py-1">{it.unit ?? '-'}</td>
+                <td className="px-2 py-1 text-right">{it.quantity ?? '-'}</td>
+                <td className="px-2 py-1 text-right">{it.unitPrice ?? '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <select className={`${input} mt-0 max-w-xs`} value={costCenterId} onChange={(e) => setCostCenterId(e.target.value)}>
+          <option value="">-- เลือก Cost Center --</option>
+          {costCenters.map((cc) => (
+            <option key={cc.id} value={cc.id}>
+              {cc.name}
+            </option>
+          ))}
+        </select>
+        <button onClick={handleImport} disabled={submitting} className={primaryButton}>
+          {submitting ? 'กำลังนำเข้า...' : 'นำเข้าเป็นรายการวัสดุ (BOQ)'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function DocumentsPage() {
   const { token, user } = useAuth();
   const canReview = user?.role === 'ACCOUNTANT' || user?.role === 'CFO' || user?.role === 'CEO';
@@ -194,6 +288,7 @@ export default function DocumentsPage() {
   const [uploadCategory, setUploadCategory] = useState<DocumentCategory>('BILL');
   const [categoryFilter, setCategoryFilter] = useState<DocumentCategory | 'ALL'>('ALL');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [boqExpandedId, setBoqExpandedId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function reload() {
@@ -331,6 +426,16 @@ export default function DocumentsPage() {
                       {expandedId === doc.id ? 'ปิด' : 'ตรวจสอบ'}
                     </button>
                   )}
+                  {canReview && doc.category === 'BOQ' && (doc.ocrRawJson?.items?.length ?? 0) > 0 && (
+                    <button
+                      className={`${secondaryButton} px-3 py-1 text-xs`}
+                      onClick={() => setBoqExpandedId(boqExpandedId === doc.id ? null : doc.id)}
+                    >
+                      {boqExpandedId === doc.id
+                        ? 'ปิด'
+                        : `ดูรายการ (${doc.ocrRawJson?.items?.length}) / นำเข้า`}
+                    </button>
+                  )}
                 </div>
               </div>
               {expandedId === doc.id && token && (
@@ -343,6 +448,14 @@ export default function DocumentsPage() {
                     setExpandedId(null);
                     reload();
                   }}
+                />
+              )}
+              {boqExpandedId === doc.id && token && (
+                <BoqItemsPanel
+                  doc={doc}
+                  costCenters={costCenters}
+                  token={token}
+                  onDone={() => reload()}
                 />
               )}
             </div>
