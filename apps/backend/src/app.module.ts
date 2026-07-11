@@ -22,6 +22,7 @@ import { FeasibilityModule } from './feasibility/feasibility.module';
 import { PaymentMilestonesModule } from './payment-milestones/payment-milestones.module';
 import { BoqTemplatesModule } from './boq-templates/boq-templates.module';
 import { LedgerImportModule } from './ledger-import/ledger-import.module';
+import { BankStatementModule } from './bank-statement/bank-statement.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { LedgerImportModule } from './ledger-import/ledger-import.module';
     PaymentMilestonesModule,
     BoqTemplatesModule,
     LedgerImportModule,
+    BankStatementModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

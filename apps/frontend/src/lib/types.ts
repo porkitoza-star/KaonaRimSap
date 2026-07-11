@@ -409,3 +409,24 @@ export interface WhtCertificate {
   issueDate: string;
   bill?: Bill;
 }
+
+export type BankStatementDirection = 'CREDIT' | 'DEBIT' | 'UNKNOWN';
+
+export interface BankStatementTransaction {
+  page: number;
+  rawLine: string;
+  date: string | null;
+  description: string;
+  amount: number;
+  direction: BankStatementDirection;
+  balance: number | null;
+}
+
+export interface BankStatementParseResult {
+  pageCount: number;
+  transactionCount: number;
+  totalCredit: number;
+  totalDebit: number;
+  transactions: BankStatementTransaction[];
+  unparsedLines: { page: number; text: string }[];
+}
