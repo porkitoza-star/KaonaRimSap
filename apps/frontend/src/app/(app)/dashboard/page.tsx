@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api, ApiError } from '@/lib/api';
-import type { IncomeExpenseSummary } from '@/lib/types';
+import type { DashboardGranularity, IncomeExpenseSummary, LaborMaterialSummary } from '@/lib/types';
 import { formatDate, formatThb } from '@/lib/format';
 import { StatTile } from '@/components/stat-tile';
 import { AgingBarChart } from '@/components/aging-bar-chart';
 import { IncomeExpenseChart } from '@/components/income-expense-chart';
+import { LaborMaterialChart } from '@/components/labor-material-chart';
+import { GranularityToggle } from '@/components/granularity-toggle';
 
 interface CashBalance {
   balance: number;
@@ -55,6 +57,8 @@ export default function DashboardPage() {
   const [forecast, setForecast] = useState<CashFlowForecast | null>(null);
   const [milestones, setMilestones] = useState<PendingMilestones | null>(null);
   const [incomeExpense, setIncomeExpense] = useState<IncomeExpenseSummary | null>(null);
+  const [laborMaterial, setLaborMaterial] = useState<LaborMaterialSummary | null>(null);
+  const [granularity, setGranularity] = useState<DashboardGranularity>('month');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -66,21 +70,34 @@ export default function DashboardPage() {
       api.get<PnlRow[]>('/dashboard/pnl-by-cost-center', token),
       api.get<CashFlowForecast>('/dashboard/cash-flow-forecast', token),
       api.get<PendingMilestones>('/dashboard/pending-construction-milestones', token),
-      api.get<IncomeExpenseSummary>('/dashboard/income-expense-summary', token),
     ])
-      .then(([cashRes, arRes, apRes, pnlRes, forecastRes, milestonesRes, incomeExpenseRes]) => {
+      .then(([cashRes, arRes, apRes, pnlRes, forecastRes, milestonesRes]) => {
         setCash(cashRes);
         setArAging(arRes);
         setApAging(apRes);
         setPnl(pnlRes);
         setForecast(forecastRes);
         setMilestones(milestonesRes);
-        setIncomeExpense(incomeExpenseRes);
       })
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : 'โหลดข้อมูลแดชบอร์ดไม่สำเร็จ');
       });
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    Promise.all([
+      api.get<IncomeExpenseSummary>(`/dashboard/income-expense-summary?granularity=${granularity}`, token),
+      api.get<LaborMaterialSummary>(`/dashboard/labor-material-paid?granularity=${granularity}`, token),
+    ])
+      .then(([incomeExpenseRes, laborMaterialRes]) => {
+        setIncomeExpense(incomeExpenseRes);
+        setLaborMaterial(laborMaterialRes);
+      })
+      .catch((err) => {
+        setError(err instanceof ApiError ? err.message : 'โหลดข้อมูลกราฟไม่สำเร็จ');
+      });
+  }, [token, granularity]);
 
   if (error) {
     return <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>;
@@ -176,13 +193,18 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-gray-400">ช่วงเวลาของกราฟด้านล่าง</p>
+        <GranularityToggle value={granularity} onChange={setGranularity} />
+      </div>
+
       {incomeExpense && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-            <h2 className="text-sm font-semibold text-gray-900">รายรับ-รายจ่ายรายเดือน</h2>
+            <h2 className="text-sm font-semibold text-gray-900">รายรับ-รายจ่าย</h2>
             <p className="mt-1 text-xs text-gray-400">รวมจากใบแจ้งหนี้ (AR) และบิล (AP) ทั้งหมด ตามวันที่ออกเอกสาร</p>
             <div className="mt-4">
-              <IncomeExpenseChart monthly={incomeExpense.monthly} />
+              <IncomeExpenseChart series={incomeExpense.series} granularity={granularity} />
             </div>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
@@ -216,6 +238,19 @@ export default function DashboardPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {laborMaterial && (
+        <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+          <h2 className="text-sm font-semibold text-gray-900">ค่าแรงช่างและค่าวัสดุที่จ่าย</h2>
+          <p className="mt-1 text-xs text-gray-400">
+            จากทะเบียนใบแจ้งหนี้ผู้จำหน่าย (ชีท &quot;ค่าของ&quot;/&quot;ค่าแรง&quot; ที่นำเข้าจาก Excel) — รวม{' '}
+            {formatThb(laborMaterial.totalLabor)} ค่าแรง และ {formatThb(laborMaterial.totalMaterial)} ค่าวัสดุ
+          </p>
+          <div className="mt-4">
+            <LaborMaterialChart series={laborMaterial.series} granularity={granularity} />
           </div>
         </div>
       )}

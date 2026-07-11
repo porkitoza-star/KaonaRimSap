@@ -7,6 +7,19 @@ function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+export type Granularity = 'day' | 'month' | 'year';
+
+function periodKey(granularity: Granularity): (d: Date) => string {
+  if (granularity === 'day') {
+    return (d) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  if (granularity === 'year') {
+    return (d) => `${d.getFullYear()}`;
+  }
+  return (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 interface AgingItem {
   id: string;
   number: string;
@@ -214,7 +227,7 @@ export class DashboardService {
     };
   }
 
-  async getIncomeExpenseSummary() {
+  async getIncomeExpenseSummary(granularity: Granularity = 'month') {
     const [invoices, bills] = await Promise.all([
       this.prisma.invoice.findMany({
         where: { status: { not: InvoiceStatus.VOID } },
@@ -230,26 +243,26 @@ export class DashboardService {
       }),
     ]);
 
-    const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const key = periodKey(granularity);
 
-    const monthlyMap = new Map<string, { income: number; expense: number }>();
+    const seriesMap = new Map<string, { income: number; expense: number }>();
     for (const inv of invoices) {
-      const key = monthKey(inv.issueDate);
-      const entry = monthlyMap.get(key) ?? { income: 0, expense: 0 };
+      const k = key(inv.issueDate);
+      const entry = seriesMap.get(k) ?? { income: 0, expense: 0 };
       entry.income += Number(inv.totalAmount);
-      monthlyMap.set(key, entry);
+      seriesMap.set(k, entry);
     }
     for (const bill of bills) {
-      const key = monthKey(bill.issueDate);
-      const entry = monthlyMap.get(key) ?? { income: 0, expense: 0 };
+      const k = key(bill.issueDate);
+      const entry = seriesMap.get(k) ?? { income: 0, expense: 0 };
       entry.expense += Number(bill.totalAmount);
-      monthlyMap.set(key, entry);
+      seriesMap.set(k, entry);
     }
 
-    const monthly = [...monthlyMap.entries()]
+    const series = [...seriesMap.entries()]
       .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([month, v]) => ({
-        month,
+      .map(([period, v]) => ({
+        period,
         income: round2(v.income),
         expense: round2(v.expense),
         net: round2(v.income - v.expense),
@@ -258,8 +271,8 @@ export class DashboardService {
     const byWorkCategoryMap = new Map<string, number>();
     for (const bill of bills) {
       for (const line of bill.lines) {
-        const key = line.workCategory?.trim() || 'ไม่ระบุหมวดงาน';
-        byWorkCategoryMap.set(key, round2((byWorkCategoryMap.get(key) ?? 0) + Number(line.amount)));
+        const wcKey = line.workCategory?.trim() || 'ไม่ระบุหมวดงาน';
+        byWorkCategoryMap.set(wcKey, round2((byWorkCategoryMap.get(wcKey) ?? 0) + Number(line.amount)));
       }
     }
     const byWorkCategory = [...byWorkCategoryMap.entries()]
@@ -267,10 +280,40 @@ export class DashboardService {
       .sort((a, b) => b.amount - a.amount);
 
     return {
-      monthly,
+      granularity,
+      series,
       byWorkCategory,
       totalIncome: round2(invoices.reduce((sum, i) => sum + Number(i.totalAmount), 0)),
       totalExpense: round2(bills.reduce((sum, b) => sum + Number(b.totalAmount), 0)),
+    };
+  }
+
+  async getLaborMaterialPaid(granularity: Granularity = 'month') {
+    const invoices = await this.prisma.supplierInvoiceRecord.findMany({
+      select: { type: true, invoiceDate: true, totalAmount: true },
+    });
+
+    const key = periodKey(granularity);
+    const seriesMap = new Map<string, { labor: number; material: number }>();
+    for (const inv of invoices) {
+      const k = key(inv.invoiceDate);
+      const entry = seriesMap.get(k) ?? { labor: 0, material: 0 };
+      if (inv.type === 'LABOR') entry.labor += Number(inv.totalAmount);
+      else entry.material += Number(inv.totalAmount);
+      seriesMap.set(k, entry);
+    }
+
+    const series = [...seriesMap.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([period, v]) => ({ period, labor: round2(v.labor), material: round2(v.material) }));
+
+    return {
+      granularity,
+      series,
+      totalLabor: round2(invoices.filter((i) => i.type === 'LABOR').reduce((sum, i) => sum + Number(i.totalAmount), 0)),
+      totalMaterial: round2(
+        invoices.filter((i) => i.type === 'MATERIAL').reduce((sum, i) => sum + Number(i.totalAmount), 0),
+      ),
     };
   }
 }

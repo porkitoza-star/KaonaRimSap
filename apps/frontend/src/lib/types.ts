@@ -305,8 +305,10 @@ export interface FeasibilitySummary {
   profitPerUnit: number;
 }
 
-export interface MonthlyIncomeExpense {
-  month: string;
+export type DashboardGranularity = 'day' | 'month' | 'year';
+
+export interface IncomeExpensePeriod {
+  period: string;
   income: number;
   expense: number;
   net: number;
@@ -318,10 +320,24 @@ export interface WorkCategoryExpense {
 }
 
 export interface IncomeExpenseSummary {
-  monthly: MonthlyIncomeExpense[];
+  granularity: DashboardGranularity;
+  series: IncomeExpensePeriod[];
   byWorkCategory: WorkCategoryExpense[];
   totalIncome: number;
   totalExpense: number;
+}
+
+export interface LaborMaterialPeriod {
+  period: string;
+  labor: number;
+  material: number;
+}
+
+export interface LaborMaterialSummary {
+  granularity: DashboardGranularity;
+  series: LaborMaterialPeriod[];
+  totalLabor: number;
+  totalMaterial: number;
 }
 
 export interface ProjectFeasibility {
@@ -363,6 +379,11 @@ export interface LedgerImportPreview {
     amount: number;
     description: string;
   }[];
+  materialInvoiceCount: number;
+  laborInvoiceCount: number;
+  totalMaterialAmount: number;
+  totalLaborAmount: number;
+  supplierInvoiceSkippedCount: number;
 }
 
 export interface LedgerImportCommitResult {
@@ -371,6 +392,8 @@ export interface LedgerImportCommitResult {
   costCentersCreated: number;
   contactsCreated: number;
   skipped: number;
+  createdSupplierInvoices: number;
+  duplicateSupplierInvoices: number;
   errors: { context: string; reason: string }[];
 }
 
