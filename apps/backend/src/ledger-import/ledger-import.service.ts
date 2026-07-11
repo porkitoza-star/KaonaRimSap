@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ContactType, CostCenterType, PaymentStatus, Role } from '@prisma/client';
+import { BillStatus, ContactType, CostCenterType, InvoiceStatus, PaymentStatus, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillsService } from '../bills/bills.service';
 import { InvoicesService } from '../invoices/invoices.service';
@@ -126,26 +126,44 @@ export class LedgerImportService {
       reason: e.reason,
     }));
 
-    let billCounter = 0;
     let createdBills = 0;
+    let duplicateBills = 0;
     for (const b of parsed.bills) {
-      billCounter++;
       try {
         const costCenterId = await this.getOrCreateCostCenter(caches, b.house);
+        const description = b.descriptions.slice(0, 3).join('; ').slice(0, 490);
+
+        // Re-importing the same (or an overlapping) ledger sheet must never
+        // double-book the same expense — match on the exact combination of
+        // cost center + line description + amount that a re-run of this
+        // same row would always produce, regardless of date.
+        const existingBillLine = await this.prisma.billLine.findFirst({
+          where: {
+            costCenterId,
+            description,
+            amount: b.amount,
+            bill: { status: { not: BillStatus.VOID } },
+          },
+        });
+        if (existingBillLine) {
+          duplicateBills++;
+          continue;
+        }
+
         const contactName = resolveExpenseContactName(b.method);
         const contactId = await this.getOrCreateContact(caches, contactName, ContactType.SUPPLIER);
         const dateIso = (b.date ?? new Date()).toISOString();
 
         const created = await this.billsService.create(
           {
-            number: `LEDGER-${b.sheetName.slice(0, 8)}-B${billCounter}`,
+            number: `LEDGER-${b.sheetName.slice(0, 8)}-B${b.sourceRow}`,
             contactId,
             issueDate: dateIso,
             dueDate: dateIso,
             vatAmount: 0,
             lines: [
               {
-                description: b.descriptions.slice(0, 3).join('; ').slice(0, 490),
+                description,
                 amount: b.amount,
                 costCenterId,
                 accountId: constructionAccount.id,
@@ -189,26 +207,42 @@ export class LedgerImportService {
       }
     }
 
-    let invoiceCounter = 0;
     let createdInvoices = 0;
+    let duplicateInvoices = 0;
     for (const inv of parsed.invoices) {
-      invoiceCounter++;
       try {
         const costCenterId = await this.getOrCreateCostCenter(caches, inv.house);
+        const subtotal = round2(inv.amount / (1 + VAT_RATE));
+        const description = inv.description.slice(0, 490);
+
+        // Same idempotency guard as bills — a re-run of this exact row must
+        // never double-book the same revenue.
+        const existingInvoiceLine = await this.prisma.invoiceLine.findFirst({
+          where: {
+            costCenterId,
+            description,
+            amount: subtotal,
+            invoice: { status: { not: InvoiceStatus.VOID } },
+          },
+        });
+        if (existingInvoiceLine) {
+          duplicateInvoices++;
+          continue;
+        }
+
         const contactName = resolveIncomeContactName(inv.description);
         const contactId = await this.getOrCreateContact(caches, contactName, ContactType.CUSTOMER);
         const dateIso = (inv.date ?? new Date()).toISOString();
-        const subtotal = round2(inv.amount / (1 + VAT_RATE));
 
         const created = await this.invoicesService.create(
           {
-            number: `LEDGER-${inv.sheetName.slice(0, 8)}-I${invoiceCounter}`,
+            number: `LEDGER-${inv.sheetName.slice(0, 8)}-I${inv.sourceRow}`,
             contactId,
             issueDate: dateIso,
             dueDate: dateIso,
             lines: [
               {
-                description: inv.description.slice(0, 490),
+                description,
                 amount: subtotal,
                 costCenterId,
                 accountId: revenueAccount.id,
@@ -281,6 +315,8 @@ export class LedgerImportService {
     return {
       createdBills,
       createdInvoices,
+      duplicateBills,
+      duplicateInvoices,
       costCentersCreated: caches.costCenters.size,
       contactsCreated: caches.contacts.size,
       skipped: parsed.skipped.length,
