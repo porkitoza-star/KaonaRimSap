@@ -12,8 +12,24 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
   app.use(helmet());
+
+  // Vercel gives every preview deployment (one per branch/PR) its own
+  // subdomain distinct from the production FRONTEND_URL, e.g.
+  // "kaona-rim-sap-frontend-git-<branch>-kaona-rim-sap.vercel.app" — allow
+  // those alongside the configured production origin so preview links work
+  // for review, not just the main deployed site.
+  const frontendUrl = process.env.FRONTEND_URL;
+  const vercelPreviewRe = /^https:\/\/kaona-rim-sap-frontend-[a-z0-9-]+\.vercel\.app$/i;
   app.enableCors({
-    origin: process.env.FRONTEND_URL ?? true,
+    origin: !frontendUrl
+      ? true
+      : (origin, callback) => {
+          if (!origin || origin === frontendUrl || vercelPreviewRe.test(origin)) {
+            callback(null, true);
+          } else {
+            callback(new Error('Not allowed by CORS'), false);
+          }
+        },
   });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
