@@ -71,14 +71,16 @@ function shadeHex(hex: string, amount: number): string {
 function AppIcon({ icon, color }: { icon: string; color: string }) {
   return (
     <span
-      className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[22%] text-2xl shadow-[0_3px_8px_rgba(0,0,0,0.28)] md:h-12 md:w-12 md:text-xl"
+      className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-[26%] text-[2.4rem] shadow-[0_10px_18px_rgba(0,0,0,0.24),0_3px_6px_rgba(0,0,0,0.18)] md:h-14 md:w-14 md:rounded-[24%] md:text-2xl md:shadow-[0_4px_9px_rgba(0,0,0,0.24),0_1px_3px_rgba(0,0,0,0.16)]"
       style={{
-        background: `linear-gradient(155deg, ${shadeHex(color, 0.35)} 0%, ${color} 45%, ${shadeHex(color, -0.2)} 100%)`,
+        background: `linear-gradient(160deg, ${shadeHex(color, 0.3)} 0%, ${color} 48%, ${shadeHex(color, -0.22)} 100%)`,
       }}
     >
-      <span className="pointer-events-none absolute inset-x-1 top-1 h-1/2 rounded-[50%] bg-white/35 blur-[2px]" />
-      <span className="pointer-events-none absolute inset-0 rounded-[22%] shadow-[inset_0_-3px_5px_rgba(0,0,0,0.25)]" />
-      <span className="relative drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]">{icon}</span>
+      {/* Glass highlight across the top half, like a light source above the icon. */}
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-3/5 rounded-t-[26%] bg-gradient-to-b from-white/55 via-white/15 to-transparent" />
+      {/* Soft bright rim at the top edge, dark rim at the bottom — the beveled "glass" look. */}
+      <span className="pointer-events-none absolute inset-0 rounded-[26%] shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.7),inset_0_-8px_12px_rgba(0,0,0,0.3)] md:rounded-[24%] md:shadow-[inset_0_1px_1px_rgba(255,255,255,0.65),inset_0_-5px_8px_rgba(0,0,0,0.28)]" />
+      <span className="relative drop-shadow-[0_2px_3px_rgba(0,0,0,0.3)]">{icon}</span>
     </span>
   );
 }
@@ -140,7 +142,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
               {group.title}
             </p>
-            <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:flex md:flex-col md:gap-1">
+            <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-5 md:flex md:flex-col md:gap-1">
               {group.items.map((item) => (
                 <NavTile key={item.href} item={item} active={pathname.startsWith(item.href)} />
               ))}
@@ -152,7 +154,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
             ออกจากระบบ
           </p>
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:flex">
+          <div className="grid grid-cols-4 gap-x-2 sm:grid-cols-5 md:flex">
             <button type="button" onClick={logout} className="flex flex-col items-center gap-1 md:flex-row md:gap-2">
               <AppIcon icon="🚪" color="#FF453A" />
               <span className="text-center text-[11px] leading-tight text-gray-700 md:text-left md:text-sm">
