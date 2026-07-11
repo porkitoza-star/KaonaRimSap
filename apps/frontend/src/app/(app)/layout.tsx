@@ -68,19 +68,39 @@ function shadeHex(hex: string, amount: number): string {
   return `#${[mix(r), mix(g), mix(b)].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
 }
 
+// Jewel-tone version of the icon color: deeper and more saturated than the
+// flat iOS hue, closer to a cut gemstone (sapphire/emerald/ruby/citrine).
+function jewelTone(hex: string): string {
+  return shadeHex(hex, -0.12);
+}
+
 function AppIcon({ icon, color }: { icon: string; color: string }) {
+  const gem = jewelTone(color);
+  // Simulated facets: a conic gradient sweeping through several
+  // light/dark passes of the gem color, like light catching the cut faces
+  // of a gemstone, instead of one smooth linear gradient.
+  const facetGradient = `conic-gradient(from 220deg at 32% 28%, ${shadeHex(gem, 0.55)} 0deg, ${shadeHex(gem, 0.1)} 55deg, ${gem} 120deg, ${shadeHex(gem, -0.35)} 195deg, ${shadeHex(gem, -0.15)} 280deg, ${shadeHex(gem, 0.4)} 360deg)`;
+
   return (
     <span
-      className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-[26%] text-[2.4rem] shadow-[0_10px_18px_rgba(0,0,0,0.24),0_3px_6px_rgba(0,0,0,0.18)] md:h-14 md:w-14 md:rounded-[24%] md:text-2xl md:shadow-[0_4px_9px_rgba(0,0,0,0.24),0_1px_3px_rgba(0,0,0,0.16)]"
+      className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-[28%] p-[2px] shadow-[0_10px_18px_rgba(0,0,0,0.26),0_3px_6px_rgba(0,0,0,0.2)] md:h-14 md:w-14 md:rounded-[25%] md:p-px md:shadow-[0_4px_9px_rgba(0,0,0,0.24),0_1px_3px_rgba(0,0,0,0.16)]"
       style={{
-        background: `linear-gradient(160deg, ${shadeHex(color, 0.3)} 0%, ${color} 48%, ${shadeHex(color, -0.22)} 100%)`,
+        // Thin gold bezel "setting" around the gem, like a jewelry mount.
+        background: 'linear-gradient(135deg, #fdf1c8 0%, #b8860b 45%, #6e4d05 60%, #f4d874 100%)',
       }}
     >
-      {/* Glass highlight across the top half, like a light source above the icon. */}
-      <span className="pointer-events-none absolute inset-x-0 top-0 h-3/5 rounded-t-[26%] bg-gradient-to-b from-white/55 via-white/15 to-transparent" />
-      {/* Soft bright rim at the top edge, dark rim at the bottom — the beveled "glass" look. */}
-      <span className="pointer-events-none absolute inset-0 rounded-[26%] shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.7),inset_0_-8px_12px_rgba(0,0,0,0.3)] md:rounded-[24%] md:shadow-[inset_0_1px_1px_rgba(255,255,255,0.65),inset_0_-5px_8px_rgba(0,0,0,0.28)]" />
-      <span className="relative drop-shadow-[0_2px_3px_rgba(0,0,0,0.3)]">{icon}</span>
+      <span
+        className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[26%] text-[2.3rem] md:rounded-[23%] md:text-2xl"
+        style={{ background: facetGradient }}
+      >
+        {/* Glass highlight across the top half, like a light source above the icon. */}
+        <span className="pointer-events-none absolute inset-x-0 top-0 h-3/5 rounded-t-[26%] bg-gradient-to-b from-white/55 via-white/12 to-transparent" />
+        {/* Soft bright rim at the top edge, dark rim at the bottom — the beveled "glass" look. */}
+        <span className="pointer-events-none absolute inset-0 rounded-[26%] shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.75),inset_0_-8px_12px_rgba(0,0,0,0.35)] md:rounded-[23%] md:shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_-5px_8px_rgba(0,0,0,0.32)]" />
+        {/* A small sparkle catch-light, like a gem-cut reflection. */}
+        <span className="pointer-events-none absolute left-2 top-2 h-1.5 w-1.5 rounded-full bg-white/95 blur-[0.5px] md:h-1 md:w-1" />
+        <span className="relative drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]">{icon}</span>
+      </span>
     </span>
   );
 }
