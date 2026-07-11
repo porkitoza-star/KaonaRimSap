@@ -52,13 +52,55 @@ const BASE_NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+// Blends a hex color toward white (amount > 0) or black (amount < 0) by the
+// given fraction, used to build the light-to-dark gradient that gives the
+// icon tiles their glossy, App-Store-style 3D look.
+function shadeHex(hex: string, amount: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = (n >> 16) & 0xff;
+  const g = (n >> 8) & 0xff;
+  const b = n & 0xff;
+  const mix = (channel: number) => {
+    const target = amount > 0 ? 255 : 0;
+    const c = Math.round(channel + (target - channel) * Math.abs(amount));
+    return Math.max(0, Math.min(255, c));
+  };
+  return `#${[mix(r), mix(g), mix(b)].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
+
+// Jewel-tone version of the icon color: deeper and more saturated than the
+// flat iOS hue, closer to a cut gemstone (sapphire/emerald/ruby/citrine).
+function jewelTone(hex: string): string {
+  return shadeHex(hex, -0.12);
+}
+
 function AppIcon({ icon, color }: { icon: string; color: string }) {
+  const gem = jewelTone(color);
+  // Simulated facets: a conic gradient sweeping through several
+  // light/dark passes of the gem color, like light catching the cut faces
+  // of a gemstone, instead of one smooth linear gradient.
+  const facetGradient = `conic-gradient(from 220deg at 32% 28%, ${shadeHex(gem, 0.55)} 0deg, ${shadeHex(gem, 0.1)} 55deg, ${gem} 120deg, ${shadeHex(gem, -0.35)} 195deg, ${shadeHex(gem, -0.15)} 280deg, ${shadeHex(gem, 0.4)} 360deg)`;
+
   return (
     <span
-      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] text-xl shadow-sm md:h-11 md:w-11 md:text-lg"
-      style={{ backgroundColor: color }}
+      className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-[28%] p-[2px] shadow-[0_10px_18px_rgba(0,0,0,0.26),0_3px_6px_rgba(0,0,0,0.2)] md:h-14 md:w-14 md:rounded-[25%] md:p-px md:shadow-[0_4px_9px_rgba(0,0,0,0.24),0_1px_3px_rgba(0,0,0,0.16)]"
+      style={{
+        // Thin gold bezel "setting" around the gem, like a jewelry mount.
+        background: 'linear-gradient(135deg, #fdf1c8 0%, #b8860b 45%, #6e4d05 60%, #f4d874 100%)',
+      }}
     >
-      {icon}
+      <span
+        className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[26%] text-[2.3rem] md:rounded-[23%] md:text-2xl"
+        style={{ background: facetGradient }}
+      >
+        {/* Glass highlight across the top half, like a light source above the icon. */}
+        <span className="pointer-events-none absolute inset-x-0 top-0 h-3/5 rounded-t-[26%] bg-gradient-to-b from-white/55 via-white/12 to-transparent" />
+        {/* Soft bright rim at the top edge, dark rim at the bottom — the beveled "glass" look. */}
+        <span className="pointer-events-none absolute inset-0 rounded-[26%] shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.75),inset_0_-8px_12px_rgba(0,0,0,0.35)] md:rounded-[23%] md:shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_-5px_8px_rgba(0,0,0,0.32)]" />
+        {/* A small sparkle catch-light, like a gem-cut reflection. */}
+        <span className="pointer-events-none absolute left-2 top-2 h-1.5 w-1.5 rounded-full bg-white/95 blur-[0.5px] md:h-1 md:w-1" />
+        <span className="relative drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]">{icon}</span>
+      </span>
     </span>
   );
 }
@@ -107,8 +149,13 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="w-full shrink-0 border-b border-gray-200 bg-white md:h-screen md:w-72 md:overflow-y-auto md:border-b-0 md:border-r">
-        <div className="sticky top-0 z-10 border-b-2 border-[#B8860B] bg-white px-4 py-4">
+      <aside
+        className="w-full shrink-0 border-b border-gray-200 bg-white bg-cover bg-top md:h-screen md:w-72 md:overflow-y-auto md:border-b-0 md:border-r"
+        style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)), url(/nav-bg.jpg)`,
+        }}
+      >
+        <div className="sticky top-0 z-10 border-b-2 border-[#B8860B] bg-white/95 px-4 py-4 backdrop-blur-sm">
           <p className="text-sm font-semibold text-[#1B5E3A]">ก้าวหน้า อสังหาริมทรัพย์</p>
           <p className="text-xs text-gray-500">
             {user?.name} ({user?.role})
@@ -120,7 +167,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
               {group.title}
             </p>
-            <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:flex md:flex-col md:gap-1">
+            <div className="grid grid-cols-4 gap-x-2 gap-y-4 sm:grid-cols-5 md:flex md:flex-col md:gap-1">
               {group.items.map((item) => (
                 <NavTile key={item.href} item={item} active={pathname.startsWith(item.href)} />
               ))}
@@ -132,7 +179,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
             ออกจากระบบ
           </p>
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:flex">
+          <div className="grid grid-cols-4 gap-x-2 sm:grid-cols-5 md:flex">
             <button type="button" onClick={logout} className="flex flex-col items-center gap-1 md:flex-row md:gap-2">
               <AppIcon icon="🚪" color="#FF453A" />
               <span className="text-center text-[11px] leading-tight text-gray-700 md:text-left md:text-sm">
