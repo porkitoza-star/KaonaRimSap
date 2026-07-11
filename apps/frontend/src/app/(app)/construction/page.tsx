@@ -1157,6 +1157,68 @@ export default function ConstructionPage() {
           )}
         </div>
       )}
+
+      {selected && (phasesData || milestonesData || feasibility) && (
+        <div className={card}>
+          <p className="text-sm font-medium text-gray-700">ภาพรวม (Dashboard) — {selected.name}</p>
+          <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {phasesData && (
+              <>
+                <div>
+                  <p className="text-xs text-gray-500">ความคืบหน้างานก่อสร้าง</p>
+                  <p className="text-lg font-semibold text-[#1B5E3A]">{phasesData.summary.overallPercent}%</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">มูลค่างานตามสัญญา</p>
+                  <p className="text-lg font-semibold">{formatThb(phasesData.summary.totalContractValue)}</p>
+                </div>
+              </>
+            )}
+            {milestonesData && (
+              <>
+                <div>
+                  <p className="text-xs text-gray-500">รับเงินแล้ว / งวดทั้งหมด</p>
+                  <p className="text-lg font-semibold text-[#1B5E3A]">
+                    {formatThb(milestonesData.summary.totalReceived)}
+                    <span className="text-sm font-normal text-gray-400"> / {formatThb(milestonesData.summary.totalAmount)}</span>
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">รอรับเงิน</p>
+                  <p className="text-lg font-semibold text-[#B8860B]">{formatThb(milestonesData.summary.totalPending)}</p>
+                </div>
+              </>
+            )}
+            {feasibility && (
+              <>
+                <div>
+                  <p className="text-xs text-gray-500">รายได้รวม / ต้นทุนรวม</p>
+                  <p className="text-lg font-semibold">
+                    {formatThb(feasibility.summary.totalRevenue)}
+                    <span className="text-sm font-normal text-gray-400"> / {formatThb(feasibility.summary.totalCost)}</span>
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">กำไรสุทธิ</p>
+                  <p className="text-lg font-semibold text-[#1B5E3A]">{formatThb(feasibility.summary.netProfit)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">ROI</p>
+                  <p className="text-lg font-semibold">{feasibility.summary.roiPercent}%</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Margin (GP/รายได้)</p>
+                  <p className="text-lg font-semibold">
+                    {feasibility.summary.totalRevenue > 0
+                      ? `${Math.round((feasibility.summary.grossProfit / feasibility.summary.totalRevenue) * 1000) / 10}%`
+                      : '-'}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
