@@ -1153,6 +1153,29 @@ export default function ConstructionPage() {
                   </p>
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 sm:grid-cols-4">
+                <div>
+                  <p className="text-xs text-gray-500">ต้นทุนคงที่ (Fixed Cost)</p>
+                  <p className="text-base font-semibold">{formatThb(feasibility.summary.fixedCost)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">ต้นทุนผันแปรต่อหลัง (Variable Cost)</p>
+                  <p className="text-base font-semibold">{formatThb(feasibility.summary.variableCostPerUnit)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">จุดคุ้มทุน (Break-even)</p>
+                  <p className="text-base font-semibold">
+                    {feasibility.summary.breakEvenUnits !== null
+                      ? `${feasibility.summary.breakEvenUnits} หลัง`
+                      : '-'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Margin (GP/รายได้)</p>
+                  <p className="text-base font-semibold">{feasibility.summary.grossMarginPercent}%</p>
+                </div>
+              </div>
             </div>
           )}
         </div>

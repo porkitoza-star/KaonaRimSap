@@ -40,6 +40,12 @@ function toResponse(record: FeasibilityWithItems) {
 
   const equityAmount = record.equityAmount !== null ? Number(record.equityAmount) : null;
 
+  const fixedCost = round2(totalLand + totalInfrastructure + totalOverhead + totalFinancing);
+  const variableCostPerUnit = record.houseCount > 0 ? round2(totalConstruction / record.houseCount) : 0;
+  const contributionMarginPerUnit = round2(Number(record.sellingPricePerUnit) - variableCostPerUnit);
+  const breakEvenUnits = contributionMarginPerUnit > 0 ? round2(fixedCost / contributionMarginPerUnit) : null;
+  const grossMarginPercent = totalRevenue > 0 ? round2((grossProfit / totalRevenue) * 100) : 0;
+
   return {
     houseCount: record.houseCount,
     sellingPricePerUnit: Number(record.sellingPricePerUnit),
@@ -62,6 +68,11 @@ function toResponse(record: FeasibilityWithItems) {
       rosPercent: totalRevenue > 0 ? round2((netProfit / totalRevenue) * 100) : 0,
       roiPercent: totalCost > 0 ? round2((netProfit / totalCost) * 100) : 0,
       roePercent: equityAmount !== null && equityAmount > 0 ? round2((netProfit / equityAmount) * 100) : null,
+      fixedCost,
+      variableCostPerUnit,
+      contributionMarginPerUnit,
+      breakEvenUnits,
+      grossMarginPercent,
       costPerUnit: record.houseCount > 0 ? round2(totalCost / record.houseCount) : 0,
       profitPerUnit: record.houseCount > 0 ? round2(netProfit / record.houseCount) : 0,
     },

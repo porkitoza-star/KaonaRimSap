@@ -5,5 +5,6 @@ import { BoqTemplatesController } from './boq-templates.controller';
 @Module({
   providers: [BoqTemplatesService],
   controllers: [BoqTemplatesController],
+  exports: [BoqTemplatesService],
 })
 export class BoqTemplatesModule {}

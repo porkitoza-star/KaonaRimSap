@@ -335,6 +335,89 @@ export interface FeasibilitySummary {
   roePercent: number | null;
   costPerUnit: number;
   profitPerUnit: number;
+  fixedCost: number;
+  variableCostPerUnit: number;
+  contributionMarginPerUnit: number;
+  breakEvenUnits: number | null;
+  grossMarginPercent: number;
+}
+
+export type EstimatorGrade = 'STANDARD' | 'HIGH' | 'LUXURY' | 'PREMIUM';
+export type EstimatorRoofType = 'GABLE' | 'HIP' | 'MONO_PITCH' | 'FLAT';
+export type EstimatorFloors = 1 | 2 | 3;
+
+export interface EstimateScenarioInput {
+  areaSqm: number;
+  floors: EstimatorFloors;
+  grade: EstimatorGrade;
+  roofType: EstimatorRoofType;
+  houseCount?: number;
+  sellingPricePerUnit?: number;
+  landCost?: number;
+  infrastructureCost?: number;
+  overheadCost?: number;
+  financingCost?: number;
+  corporateTaxRatePercent?: number;
+}
+
+export interface CostEstimatorCategoryAmount {
+  category: string;
+  amount: number;
+}
+
+export interface CostEstimatorPhasePreview {
+  sequence: number;
+  category: string;
+  name: string;
+  estimatedValue: number;
+}
+
+export interface CostEstimatorScenario {
+  inputs: {
+    areaSqm: number;
+    floors: EstimatorFloors;
+    grade: EstimatorGrade;
+    roofType: EstimatorRoofType;
+    houseCount: number;
+    sellingPricePerUnit: number;
+  };
+  rateCard: {
+    baseRatePerSqm: number;
+    gradeMultiplier: number;
+    roofMultiplier: number;
+    ratePerSqm: number;
+  };
+  boq: {
+    constructionCostPerUnit: number;
+    categoryBreakdown: CostEstimatorCategoryAmount[];
+    totalConstructionCost: number;
+  };
+  timeline: {
+    estimatedDurationMonths: number;
+    phases: CostEstimatorPhasePreview[];
+  };
+  feasibility: {
+    totalRevenue: number;
+    directCost: number;
+    totalCost: number;
+    grossProfit: number;
+    operatingProfit: number;
+    ebt: number;
+    netProfit: number;
+    fixedCost: number;
+    variableCostPerUnit: number;
+    contributionMarginPerUnit: number;
+    breakEvenUnits: number | null;
+    grossMarginPercent: number;
+  };
+}
+
+export interface CostEstimatorApplyResult {
+  scenario: CostEstimatorScenario;
+  boq: { createdCount: number; totalAmount: number };
+  phasesCreated: number;
+  phasesSkipped: boolean;
+  feasibility: unknown;
 }
 
 export type DashboardGranularity = 'day' | 'month' | 'year';
