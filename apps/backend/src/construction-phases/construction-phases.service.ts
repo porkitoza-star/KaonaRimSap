@@ -9,6 +9,10 @@ function daysBetween(start: Date, end: Date): number {
   return Math.round((end.getTime() - start.getTime()) / 86_400_000);
 }
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 function monthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
@@ -120,6 +124,8 @@ export class ConstructionPhasesService {
       totalContractValue,
     );
 
+    const ganttTable = await this.buildGanttTable(costCenterId, phases, totalContractValue, monthlyPlan);
+
     return {
       phases,
       summary: {
@@ -131,7 +137,80 @@ export class ConstructionPhasesService {
         monthlyPlan,
         monthlyActual,
       },
+      ganttTable,
     };
+  }
+
+  /**
+   * Builds the "แผนงานก่อสร้าง" style Gantt table: one row per phase with its
+   * planned value spread across the months it's scheduled in, plus a
+   * cumulative value/percent row and a cumulative cash-flow row (milestone
+   * receipts received-to-date minus work value completed-to-date) — the
+   * same shape as the reference S-curve/cash-flow planning sheet.
+   */
+  private async buildGanttTable(
+    costCenterId: string,
+    phases: Awaited<ReturnType<PrismaService['constructionPhase']['findMany']>>,
+    totalContractValue: number,
+    monthlyPlan: ReturnType<typeof buildValueCurve>,
+  ) {
+    const months = monthlyPlan.map((p) => p.month);
+    if (months.length === 0) {
+      return { months: [] as string[], rows: [], cumulativeValue: [], cashFlow: [] };
+    }
+
+    const rows = phases.map((p) => {
+      const value = Number(p.contractValue);
+      const valueByMonth: Record<string, number> = {};
+      if (value > 0 && (p.plannedStartDate || p.plannedEndDate)) {
+        const start = p.plannedStartDate ?? p.plannedEndDate!;
+        const end = p.plannedEndDate ?? p.plannedStartDate!;
+        const phaseMonths = monthsBetween(start, end);
+        const share = round2(value / phaseMonths.length);
+        for (const m of phaseMonths) {
+          valueByMonth[monthKey(m)] = share;
+        }
+      }
+      return {
+        phaseId: p.id,
+        sequence: p.sequence,
+        category: p.category,
+        name: p.name,
+        contractValue: value,
+        percentOfTotal: totalContractValue > 0 ? round2((value / totalContractValue) * 100) : 0,
+        percentComplete: p.percentComplete,
+        valueByMonth,
+      };
+    });
+
+    const cumulativeValue = monthlyPlan.map((p) => ({
+      month: p.month,
+      value: p.cumulativeValue,
+      percent: p.cumulativePercent,
+    }));
+
+    const milestones = await this.prisma.paymentMilestone.findMany({ where: { costCenterId } });
+    const monthEnd = (key: string) => {
+      const [y, m] = key.split('-').map(Number);
+      return new Date(y, m, 0, 23, 59, 59);
+    };
+    let cumulativeIncome = 0;
+    const costByMonth = new Map(monthlyPlan.map((p) => [p.month, p.cumulativeValue]));
+    const cashFlow = months.map((month) => {
+      const end = monthEnd(month);
+      cumulativeIncome = milestones
+        .filter((m) => m.actualPaidDate && m.actualPaidDate <= end)
+        .reduce((sum, m) => sum + Number(m.amount), 0);
+      const cumulativeCost = costByMonth.get(month) ?? 0;
+      return {
+        month,
+        cumulativeIncome: round2(cumulativeIncome),
+        cumulativeCost: round2(cumulativeCost),
+        net: round2(cumulativeIncome - cumulativeCost),
+      };
+    });
+
+    return { months, rows, cumulativeValue, cashFlow };
   }
 
   async seedFromTemplate(costCenterId: string, houseType: HouseTemplateType, userId: string) {

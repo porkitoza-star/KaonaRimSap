@@ -9,6 +9,7 @@ import type {
   CostCenter,
   FeasibilityCostCategory,
   FeasibilityCostItem,
+  GanttTable as GanttTableData,
   HouseTemplateType,
   PaymentMilestone,
   PaymentMilestonesResponse,
@@ -58,6 +59,108 @@ function PhaseTimelineBar({ phase, rangeStart, rangeEnd }: { phase: Construction
 function formatMonth(key: string): string {
   const [y, m] = key.split('-').map(Number);
   return new Intl.DateTimeFormat('th-TH', { month: 'short', year: '2-digit' }).format(new Date(y, m - 1, 1));
+}
+
+function GanttTable({ table }: { table: GanttTableData }) {
+  if (table.months.length === 0) {
+    return (
+      <p className="text-sm text-gray-400">
+        ยังไม่มีข้อมูลมูลค่างาน (contractValue) พร้อมวันที่แผนงานเพียงพอสำหรับสร้างตาราง Gantt — กรอกมูลค่างานและวันที่แผนในแต่ละขั้นตอนก่อน
+      </p>
+    );
+  }
+
+  const totalContractValue = table.rows.reduce((sum, r) => sum + r.contractValue, 0);
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[760px] border-collapse text-xs">
+        <thead>
+          <tr className="border-b border-gray-200 text-gray-500">
+            <th className="sticky left-0 z-10 bg-white py-2 pr-2 text-left font-medium">รายการ</th>
+            <th className="whitespace-nowrap px-2 py-2 text-right font-medium">มูลค่างาน</th>
+            <th className="px-2 py-2 text-right font-medium">%</th>
+            <th className="px-2 py-2 text-center font-medium">Progress</th>
+            {table.months.map((m) => (
+              <th key={m} className="whitespace-nowrap px-2 py-2 text-right font-medium">
+                {formatMonth(m)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((row) => (
+            <tr key={row.phaseId} className="border-b border-gray-50">
+              <td className="sticky left-0 z-10 bg-white py-1.5 pr-2 text-gray-700">
+                <span className="text-gray-400">{row.sequence}.</span> {row.name}
+              </td>
+              <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatThb(row.contractValue)}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums text-gray-500">{row.percentOfTotal}%</td>
+              <td className="px-2 py-1.5 text-center">
+                <span
+                  className={`${badge} ${
+                    row.percentComplete >= 100
+                      ? 'bg-green-50 text-[#1B5E3A]'
+                      : row.percentComplete > 0
+                        ? 'bg-amber-50 text-[#B8860B]'
+                        : 'bg-gray-50 text-gray-400'
+                  }`}
+                >
+                  {row.percentComplete}%
+                </span>
+              </td>
+              {table.months.map((m) => (
+                <td key={m} className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-gray-600">
+                  {row.valueByMonth[m] ? formatThb(row.valueByMonth[m]) : ''}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-gray-300 font-semibold text-gray-900">
+            <td className="sticky left-0 z-10 bg-white py-2 pr-2">รวมมูลค่างานตามสัญญา</td>
+            <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatThb(totalContractValue)}</td>
+            <td className="px-2 py-2 text-right">100%</td>
+            <td />
+            {table.months.map((m) => {
+              const v = table.rows.reduce((sum, r) => sum + (r.valueByMonth[m] ?? 0), 0);
+              return (
+                <td key={m} className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+                  {v ? formatThb(v) : ''}
+                </td>
+              );
+            })}
+          </tr>
+          <tr className="text-gray-500">
+            <td className="sticky left-0 z-10 bg-white py-1.5 pr-2">มูลค่างานสะสม (%)</td>
+            <td colSpan={3} />
+            {table.cumulativeValue.map((p) => (
+              <td key={p.month} className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
+                {p.percent}%
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td className="sticky left-0 z-10 bg-white py-2 pr-2 font-medium text-gray-900">
+              Cash Flow รายรับสะสม - รายจ่ายสะสม
+            </td>
+            <td colSpan={3} />
+            {table.cashFlow.map((p) => (
+              <td
+                key={p.month}
+                className={`whitespace-nowrap px-2 py-2 text-right tabular-nums font-medium ${
+                  p.net >= 0 ? 'text-[#1B5E3A]' : 'text-[#d03b3b]'
+                }`}
+              >
+                {formatThb(p.net)}
+              </td>
+            ))}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
 }
 
 function valueAtMonth(curve: ValueCurvePoint[], month: string): number {
@@ -541,6 +644,15 @@ export default function ConstructionPage() {
               <p className="text-xs text-gray-500">มูลค่าสัญญารวม</p>
               <p className="text-lg font-semibold">{formatThb(phasesData.summary.totalContractValue)}</p>
             </div>
+          </div>
+
+          <div className={card}>
+            <h2 className="mb-1 text-sm font-semibold text-gray-900">แผนงานก่อสร้าง (Gantt)</h2>
+            <p className="mb-3 text-xs text-gray-400">
+              มูลค่างานแต่ละขั้นตอนกระจายตามเดือนที่วางแผนไว้ พร้อมความคืบหน้าจริง (Progress) และ Cash Flow
+              สะสม (รับเงินจากงวดที่รับแล้ว หักมูลค่างานที่ทำสะสมถึงเดือนนั้น)
+            </p>
+            <GanttTable table={phasesData.ganttTable} />
           </div>
 
           <div className={card}>
