@@ -1024,43 +1024,61 @@ export default function ConstructionPage() {
 
             <div>
               <p className={label}>รายการต้นทุน (แยกตามหมวด)</p>
-              <div className="mt-2 space-y-2">
+              <p className="mt-1 text-xs text-gray-400">
+                แต่ละแถวคือ 1 รายการต้นทุน — เลือกหมวด ตั้งชื่อรายการ แล้วใส่ &quot;จำนวนเงิน&quot; ในช่องที่ 3 เท่านั้น
+                (ช่องที่ 2 เป็นแค่ชื่อ ไม่ถูกนำไปคำนวณ)
+              </p>
+              <div className="mt-2 space-y-3">
                 {costItemsDraft.map((row, index) => (
-                  <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[160px_1fr_180px_auto]">
-                    <select
-                      className={input}
-                      value={row.category}
-                      onChange={(e) =>
-                        updateCostItemRow(index, { category: e.target.value as FeasibilityCostCategory })
-                      }
-                    >
-                      <option value="LAND">ที่ดิน</option>
-                      <option value="CONSTRUCTION">ก่อสร้าง</option>
-                      <option value="INFRASTRUCTURE">สาธารณูปโภคส่วนกลาง</option>
-                      <option value="OVERHEAD">ค่าใช้จ่ายโครงการ</option>
-                      <option value="FINANCING">ต้นทุนทางการเงิน</option>
-                    </select>
-                    <input
-                      type="text"
-                      className={input}
-                      placeholder="เช่น ค่าที่ดิน, ดอกเบี้ยเงินกู้ระยะยาว"
-                      value={row.name}
-                      onChange={(e) => updateCostItemRow(index, { name: e.target.value })}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      className={input}
-                      placeholder="จำนวนเงิน (บาท)"
-                      value={row.amount}
-                      onChange={(e) => updateCostItemRow(index, { amount: Number(e.target.value) })}
-                    />
+                  <div
+                    key={index}
+                    className="grid grid-cols-1 gap-2 rounded-lg border border-gray-100 p-3 sm:grid-cols-[160px_1fr_180px_auto] sm:items-end sm:border-0 sm:p-0"
+                  >
+                    <div>
+                      <label className={label}>หมวดต้นทุน</label>
+                      <select
+                        className={input}
+                        value={row.category}
+                        onChange={(e) =>
+                          updateCostItemRow(index, { category: e.target.value as FeasibilityCostCategory })
+                        }
+                      >
+                        <option value="LAND">ที่ดิน</option>
+                        <option value="CONSTRUCTION">ก่อสร้าง</option>
+                        <option value="INFRASTRUCTURE">สาธารณูปโภคส่วนกลาง</option>
+                        <option value="OVERHEAD">ค่าใช้จ่ายโครงการ</option>
+                        <option value="FINANCING">ต้นทุนทางการเงิน</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={label}>ชื่อรายการ (ข้อความอธิบาย ไม่ใช่จำนวนเงิน)</label>
+                      <input
+                        type="text"
+                        className={input}
+                        placeholder="เช่น ค่าที่ดิน, ดอกเบี้ยเงินกู้ระยะยาว"
+                        value={row.name}
+                        onChange={(e) => updateCostItemRow(index, { name: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className={label}>จำนวนเงิน (บาท) — ใส่ตัวเลขที่นี่</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className={input}
+                        placeholder="0"
+                        value={row.amount === 0 ? '' : row.amount}
+                        onChange={(e) =>
+                          updateCostItemRow(index, { amount: e.target.value === '' ? 0 : Number(e.target.value) })
+                        }
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeCostItemRow(index)}
                       className={`${secondaryButton} px-2 py-1 text-xs`}
                     >
-                      ลบ
+                      ลบรายการนี้
                     </button>
                   </div>
                 ))}
