@@ -52,13 +52,33 @@ const BASE_NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+// Blends a hex color toward white (amount > 0) or black (amount < 0) by the
+// given fraction, used to build the light-to-dark gradient that gives the
+// icon tiles their glossy, App-Store-style 3D look.
+function shadeHex(hex: string, amount: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = (n >> 16) & 0xff;
+  const g = (n >> 8) & 0xff;
+  const b = n & 0xff;
+  const mix = (channel: number) => {
+    const target = amount > 0 ? 255 : 0;
+    const c = Math.round(channel + (target - channel) * Math.abs(amount));
+    return Math.max(0, Math.min(255, c));
+  };
+  return `#${[mix(r), mix(g), mix(b)].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
+
 function AppIcon({ icon, color }: { icon: string; color: string }) {
   return (
     <span
-      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] text-xl shadow-sm md:h-11 md:w-11 md:text-lg"
-      style={{ backgroundColor: color }}
+      className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[22%] text-2xl shadow-[0_3px_8px_rgba(0,0,0,0.28)] md:h-12 md:w-12 md:text-xl"
+      style={{
+        background: `linear-gradient(155deg, ${shadeHex(color, 0.35)} 0%, ${color} 45%, ${shadeHex(color, -0.2)} 100%)`,
+      }}
     >
-      {icon}
+      <span className="pointer-events-none absolute inset-x-1 top-1 h-1/2 rounded-[50%] bg-white/35 blur-[2px]" />
+      <span className="pointer-events-none absolute inset-0 rounded-[22%] shadow-[inset_0_-3px_5px_rgba(0,0,0,0.25)]" />
+      <span className="relative drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]">{icon}</span>
     </span>
   );
 }
