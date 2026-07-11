@@ -1,4 +1,3 @@
-import type { DashboardGranularity } from '@/lib/types';
 import { formatThb } from '@/lib/format';
 
 export interface GroupedBarPoint {
@@ -7,19 +6,32 @@ export interface GroupedBarPoint {
   b: number;
 }
 
-function formatPeriod(period: string, granularity: DashboardGranularity): string {
-  if (granularity === 'year') return period;
-  if (granularity === 'day') {
-    const [y, m, d] = period.split('-').map(Number);
+// Detects the period string's actual shape (YYYY / YYYY-MM / YYYY-MM-DD)
+// rather than trusting the `granularity` prop, since the chart can briefly
+// re-render with the new granularity before its matching data has finished
+// fetching — parsing a "YYYY-MM" period as a day (or vice versa) produces an
+// Invalid Date, which throws when formatted.
+function formatPeriod(period: string): string {
+  const parts = period.split('-').map(Number);
+  if (parts.length === 3 && parts.every((n) => !Number.isNaN(n))) {
+    const [y, m, d] = parts;
     return new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short' }).format(new Date(y, m - 1, d));
   }
-  const [y, m] = period.split('-').map(Number);
-  return new Intl.DateTimeFormat('th-TH', { month: 'short', year: '2-digit' }).format(new Date(y, m - 1, 1));
+  if (parts.length === 2 && parts.every((n) => !Number.isNaN(n))) {
+    const [y, m] = parts;
+    return new Intl.DateTimeFormat('th-TH', { month: 'short', year: '2-digit' }).format(new Date(y, m - 1, 1));
+  }
+  if (parts.length === 1 && !Number.isNaN(parts[0])) return String(parts[0]);
+  return period;
+}
+
+function formatCompact(value: number): string {
+  if (value === 0) return '';
+  return new Intl.NumberFormat('th-TH', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
 export function GroupedBarChart({
   data,
-  granularity,
   seriesALabel,
   seriesBLabel,
   colorA,
@@ -28,7 +40,6 @@ export function GroupedBarChart({
   emptyMessage,
 }: {
   data: GroupedBarPoint[];
-  granularity: DashboardGranularity;
   seriesALabel: string;
   seriesBLabel: string;
   colorA: string;
@@ -41,10 +52,10 @@ export function GroupedBarChart({
   }
 
   const width = 640;
-  const height = 260;
+  const height = 270;
   const padLeft = 56;
   const padRight = 12;
-  const padTop = 12;
+  const padTop = 24;
   const padBottom = 28;
   const plotW = width - padLeft - padRight;
   const plotH = height - padTop - padBottom;
@@ -53,13 +64,14 @@ export function GroupedBarChart({
   const groupW = plotW / data.length;
   const barW = Math.min(groupW * 0.32, 28);
   const gap = 4;
+  const showValueLabels = data.length <= 40;
 
   const y = (value: number) => padTop + plotH - (value / maxValue) * plotH;
   const barHeight = (value: number) => (value / maxValue) * plotH;
 
   return (
     <div>
-      <div className="mb-2 flex items-center gap-4 text-xs text-gray-500">
+      <div className="mb-2 flex items-center gap-4 text-xs text-gray-600">
         <span className="flex items-center gap-1">
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: colorA }} /> {seriesALabel}
         </span>
@@ -75,10 +87,10 @@ export function GroupedBarChart({
               x2={width - padRight}
               y1={y(maxValue * frac)}
               y2={y(maxValue * frac)}
-              stroke="#f0f0f0"
+              stroke="#e5e7eb"
               strokeWidth={1}
             />
-            <text x={padLeft - 6} y={y(maxValue * frac) + 3} textAnchor="end" fontSize={9} fill="#9ca3af">
+            <text x={padLeft - 6} y={y(maxValue * frac) + 3} textAnchor="end" fontSize={9} fill="#4b5563">
               {formatThb(maxValue * frac)}
             </text>
           </g>
@@ -87,7 +99,7 @@ export function GroupedBarChart({
           const groupCenter = padLeft + groupW * i + groupW / 2;
           const aX = groupCenter - barW - gap / 2;
           const bX = groupCenter + gap / 2;
-          const label = formatPeriod(m.period, granularity);
+          const label = formatPeriod(m.period);
           return (
             <g key={m.period}>
               <rect x={aX} y={y(m.a)} width={barW} height={barHeight(m.a)} rx={2} fill={colorA}>
@@ -96,7 +108,17 @@ export function GroupedBarChart({
               <rect x={bX} y={y(m.b)} width={barW} height={barHeight(m.b)} rx={2} fill={colorB}>
                 <title>{`${label}: ${seriesBLabel} ${formatThb(m.b)}`}</title>
               </rect>
-              <text x={groupCenter} y={height - 8} textAnchor="middle" fontSize={9} fill="#9ca3af">
+              {showValueLabels && m.a > 0 && (
+                <text x={aX + barW / 2} y={y(m.a) - 3} textAnchor="middle" fontSize={8} fontWeight={600} fill={colorA}>
+                  {formatCompact(m.a)}
+                </text>
+              )}
+              {showValueLabels && m.b > 0 && (
+                <text x={bX + barW / 2} y={y(m.b) - 3} textAnchor="middle" fontSize={8} fontWeight={600} fill={colorB}>
+                  {formatCompact(m.b)}
+                </text>
+              )}
+              <text x={groupCenter} y={height - 8} textAnchor="middle" fontSize={9} fill="#4b5563">
                 {label}
               </text>
             </g>

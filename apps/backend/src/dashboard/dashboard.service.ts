@@ -9,6 +9,17 @@ function round2(n: number) {
 
 export type Granularity = 'day' | 'month' | 'year';
 
+// Daily granularity can produce hundreds of points once a few years of
+// history accumulate — capping to the most recent N keeps the bar chart
+// renderable (a phone browser rendering 100+ SVG bars has been seen to
+// crash the tab) without needing a date-range picker in the UI yet.
+const MAX_DAY_POINTS = 60;
+
+function capToRecent<T>(series: T[], granularity: Granularity): T[] {
+  if (granularity !== 'day' || series.length <= MAX_DAY_POINTS) return series;
+  return series.slice(series.length - MAX_DAY_POINTS);
+}
+
 function periodKey(granularity: Granularity): (d: Date) => string {
   if (granularity === 'day') {
     return (d) =>
@@ -259,14 +270,17 @@ export class DashboardService {
       seriesMap.set(k, entry);
     }
 
-    const series = [...seriesMap.entries()]
-      .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([period, v]) => ({
-        period,
-        income: round2(v.income),
-        expense: round2(v.expense),
-        net: round2(v.income - v.expense),
-      }));
+    const series = capToRecent(
+      [...seriesMap.entries()]
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([period, v]) => ({
+          period,
+          income: round2(v.income),
+          expense: round2(v.expense),
+          net: round2(v.income - v.expense),
+        })),
+      granularity,
+    );
 
     const byWorkCategoryMap = new Map<string, number>();
     for (const bill of bills) {
@@ -303,9 +317,12 @@ export class DashboardService {
       seriesMap.set(k, entry);
     }
 
-    const series = [...seriesMap.entries()]
-      .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([period, v]) => ({ period, labor: round2(v.labor), material: round2(v.material) }));
+    const series = capToRecent(
+      [...seriesMap.entries()]
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([period, v]) => ({ period, labor: round2(v.labor), material: round2(v.material) })),
+      granularity,
+    );
 
     return {
       granularity,

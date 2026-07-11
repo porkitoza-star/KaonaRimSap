@@ -204,7 +204,7 @@ export default function DashboardPage() {
             <h2 className="text-sm font-semibold text-gray-900">รายรับ-รายจ่าย</h2>
             <p className="mt-1 text-xs text-gray-400">รวมจากใบแจ้งหนี้ (AR) และบิล (AP) ทั้งหมด ตามวันที่ออกเอกสาร</p>
             <div className="mt-4">
-              <IncomeExpenseChart series={incomeExpense.series} granularity={granularity} />
+              <IncomeExpenseChart series={incomeExpense.series} />
             </div>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
@@ -250,7 +250,7 @@ export default function DashboardPage() {
             {formatThb(laborMaterial.totalLabor)} ค่าแรง และ {formatThb(laborMaterial.totalMaterial)} ค่าวัสดุ
           </p>
           <div className="mt-4">
-            <LaborMaterialChart series={laborMaterial.series} granularity={granularity} />
+            <LaborMaterialChart series={laborMaterial.series} />
           </div>
         </div>
       )}
