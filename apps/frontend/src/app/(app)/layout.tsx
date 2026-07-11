@@ -32,6 +32,7 @@ const BASE_NAV_GROUPS: NavGroup[] = [
       { href: '/payments', shortLabel: 'จ่าย-รับเงิน', icon: '💰', color: '#34C759' },
       { href: '/wht-certificates', shortLabel: 'หัก ณ ที่จ่าย', icon: '🧮', color: '#636366' },
       { href: '/ledger-import', shortLabel: 'นำเข้า Excel', icon: '📥', color: '#30B0C7' },
+      { href: '/bank-statement', shortLabel: 'Bank Statement', icon: '🏦', color: '#5AC8FA' },
     ],
   },
   {

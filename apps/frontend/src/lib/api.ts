@@ -4,6 +4,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public body?: unknown,
   ) {
     super(message);
   }
@@ -31,13 +32,15 @@ async function request<T>(
 
   if (!res.ok) {
     let message = res.statusText;
+    let body: unknown;
     try {
-      const data = await res.json();
+      body = await res.json();
+      const data = body as { message?: string | string[] };
       message = Array.isArray(data.message) ? data.message.join(', ') : (data.message ?? message);
     } catch {
       // response body wasn't JSON; fall back to statusText
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, body);
   }
 
   if (res.status === 204) {
