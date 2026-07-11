@@ -196,7 +196,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         <div
           className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center"
           style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.92), rgba(255,255,255,0.92)), url(/content-bg.jpg)`,
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.78), rgba(255,255,255,0.78)), url(/content-bg.jpg)`,
           }}
         />
         {/* Its own positioned stacking context so it reliably paints above
