@@ -132,6 +132,27 @@ export default function LedgerImportPage() {
             </div>
           </div>
 
+          {(preview.materialInvoiceCount > 0 || preview.laborInvoiceCount > 0) && (
+            <div className={`${card} space-y-1`}>
+              <p className="text-sm font-medium text-gray-700">
+                ทะเบียนใบแจ้งหนี้ผู้จำหน่าย (ชีท &quot;ค่าของ&quot;/&quot;ค่าแรง&quot;) — ใช้แสดงกราฟค่าแรง/ค่าวัสดุบน Dashboard เท่านั้น
+                ไม่สร้างเป็นบิลซ้ำกับรายการด้านบน
+              </p>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-2">
+                <div>
+                  <p className="text-xs text-gray-500">ใบแจ้งหนี้ค่าวัสดุ</p>
+                  <p className="mt-1 text-lg font-semibold">{preview.materialInvoiceCount.toLocaleString('th-TH')}</p>
+                  <p className="text-xs text-gray-400">{formatThb(preview.totalMaterialAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">ใบแจ้งหนี้ค่าแรง</p>
+                  <p className="mt-1 text-lg font-semibold">{preview.laborInvoiceCount.toLocaleString('th-TH')}</p>
+                  <p className="text-xs text-gray-400">{formatThb(preview.totalLaborAmount)}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {preview.costCentersToCreate.length > 0 && (
             <div className={card}>
               <p className="mb-2 text-sm font-medium text-gray-700">Cost Center ที่จะถูกสร้าง</p>
@@ -280,6 +301,15 @@ export default function LedgerImportPage() {
             <div>
               <p className="text-xs text-gray-500">คู่ค้าใหม่</p>
               <p className="text-lg font-semibold">{commitResult.contactsCreated.toLocaleString('th-TH')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">ใบแจ้งหนี้ค่าแรง/ค่าวัสดุที่บันทึก</p>
+              <p className="text-lg font-semibold">{commitResult.createdSupplierInvoices.toLocaleString('th-TH')}</p>
+              {commitResult.duplicateSupplierInvoices > 0 && (
+                <p className="text-xs text-gray-400">
+                  ข้ามรายการซ้ำ {commitResult.duplicateSupplierInvoices.toLocaleString('th-TH')} รายการ
+                </p>
+              )}
             </div>
           </div>
           {commitResult.errors.length > 0 && (

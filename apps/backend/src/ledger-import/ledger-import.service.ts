@@ -7,6 +7,7 @@ import { PaymentsService } from '../payments/payments.service';
 import { VAT_RATE } from '../common/constants';
 import {
   parseLedgerWorkbook,
+  parseSupplierInvoices,
   resolveHouseInfo,
   resolveExpenseContactName,
   resolveIncomeContactName,
@@ -37,6 +38,7 @@ export class LedgerImportService {
 
   preview(buffer: Buffer) {
     const parsed = parseLedgerWorkbook(buffer);
+    const supplierInvoices = parseSupplierInvoices(buffer);
 
     const houseKeys = new Map<string, ReturnType<typeof resolveHouseInfo>>();
     for (const b of parsed.bills) {
@@ -47,6 +49,9 @@ export class LedgerImportService {
       const info = resolveHouseInfo(i.house);
       houseKeys.set(info.key, info);
     }
+
+    const materialInvoices = supplierInvoices.invoices.filter((i) => i.type === 'MATERIAL');
+    const laborInvoices = supplierInvoices.invoices.filter((i) => i.type === 'LABOR');
 
     return {
       billCount: parsed.bills.length,
@@ -71,6 +76,11 @@ export class LedgerImportService {
         amount: i.amount,
         description: i.description,
       })),
+      materialInvoiceCount: materialInvoices.length,
+      laborInvoiceCount: laborInvoices.length,
+      totalMaterialAmount: round2(materialInvoices.reduce((sum, i) => sum + i.totalAmount, 0)),
+      totalLaborAmount: round2(laborInvoices.reduce((sum, i) => sum + i.totalAmount, 0)),
+      supplierInvoiceSkippedCount: supplierInvoices.skipped.length,
     };
   }
 
@@ -228,12 +238,54 @@ export class LedgerImportService {
       }
     }
 
+    const supplierInvoices = parseSupplierInvoices(buffer);
+    let createdSupplierInvoices = 0;
+    let duplicateSupplierInvoices = 0;
+    for (const inv of supplierInvoices.invoices) {
+      try {
+        const existing = await this.prisma.supplierInvoiceRecord.findFirst({
+          where: {
+            type: inv.type,
+            invoiceDate: inv.invoiceDate,
+            supplierName: inv.supplierName,
+            totalAmount: inv.totalAmount,
+          },
+        });
+        if (existing) {
+          duplicateSupplierInvoices++;
+          continue;
+        }
+        await this.prisma.supplierInvoiceRecord.create({
+          data: {
+            type: inv.type,
+            invoiceDate: inv.invoiceDate,
+            supplierName: inv.supplierName,
+            taxId: inv.taxId,
+            invoiceNumber: inv.invoiceNumber,
+            subtotal: inv.subtotal,
+            taxAmount: inv.taxAmount,
+            totalAmount: inv.totalAmount,
+            sourceSheet: inv.sourceSheet,
+          },
+        });
+        createdSupplierInvoices++;
+      } catch (err) {
+        this.logger.warn(`Failed to import supplier invoice row ${inv.sourceRow} (${inv.sourceSheet}): ${err}`);
+        runErrors.push({
+          context: `${inv.sourceSheet} แถว ${inv.sourceRow}`,
+          reason: err instanceof Error ? err.message : 'บันทึกใบแจ้งหนี้ผู้จำหน่ายไม่สำเร็จ',
+        });
+      }
+    }
+
     return {
       createdBills,
       createdInvoices,
       costCentersCreated: caches.costCenters.size,
       contactsCreated: caches.contacts.size,
       skipped: parsed.skipped.length,
+      createdSupplierInvoices,
+      duplicateSupplierInvoices,
       errors: runErrors,
     };
   }

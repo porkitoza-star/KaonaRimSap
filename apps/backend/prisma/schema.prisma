@@ -493,3 +493,28 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+enum SupplierInvoiceType {
+  MATERIAL
+  LABOR
+}
+
+// Read-only register of supplier invoices (ค่าของ/ค่าแรง sheets) imported for
+// cost-breakdown reporting only — deliberately NOT linked to Bills/Payments,
+// since the same cash flow is already recorded via the main ledger import;
+// duplicating it here as journal-posting Bills would double-count expenses.
+model SupplierInvoiceRecord {
+  id            String              @id @default(uuid())
+  type          SupplierInvoiceType
+  invoiceDate   DateTime
+  supplierName  String
+  taxId         String?
+  invoiceNumber String?
+  subtotal      Decimal             @db.Decimal(15, 2)
+  taxAmount     Decimal             @db.Decimal(15, 2)
+  totalAmount   Decimal             @db.Decimal(15, 2)
+  sourceSheet   String
+  createdAt     DateTime            @default(now())
+
+  @@map("supplier_invoice_records")
+}

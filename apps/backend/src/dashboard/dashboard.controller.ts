@@ -1,7 +1,11 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { DashboardService } from './dashboard.service';
+import { DashboardService, Granularity } from './dashboard.service';
+
+function parseGranularity(value?: string): Granularity {
+  return value === 'day' || value === 'year' ? value : 'month';
+}
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('dashboard')
@@ -42,7 +46,12 @@ export class DashboardController {
   }
 
   @Get('income-expense-summary')
-  incomeExpenseSummary() {
-    return this.dashboardService.getIncomeExpenseSummary();
+  incomeExpenseSummary(@Query('granularity') granularity?: string) {
+    return this.dashboardService.getIncomeExpenseSummary(parseGranularity(granularity));
+  }
+
+  @Get('labor-material-paid')
+  laborMaterialPaid(@Query('granularity') granularity?: string) {
+    return this.dashboardService.getLaborMaterialPaid(parseGranularity(granularity));
   }
 }

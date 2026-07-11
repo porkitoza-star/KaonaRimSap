@@ -40,6 +40,21 @@ export interface ParsedLedger {
   errors: ParseIssue[];
 }
 
+export type SupplierInvoiceType = 'MATERIAL' | 'LABOR';
+
+export interface ParsedSupplierInvoice {
+  type: SupplierInvoiceType;
+  invoiceDate: Date;
+  supplierName: string;
+  taxId: string | null;
+  invoiceNumber: string | null;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  sourceSheet: string;
+  sourceRow: number;
+}
+
 function toNumber(value: unknown): number | null {
   if (typeof value === 'number') return value;
   if (typeof value === 'string' && value.trim() && !Number.isNaN(Number(value))) return Number(value);
@@ -193,4 +208,79 @@ export function parseLedgerWorkbook(buffer: Buffer): ParsedLedger {
   }
 
   return result;
+}
+
+function sheetInvoiceType(sheetName: string): SupplierInvoiceType | null {
+  if (sheetName.startsWith('ค่าของ')) return 'MATERIAL';
+  if (sheetName.startsWith('ค่าแรง')) return 'LABOR';
+  return null;
+}
+
+/**
+ * Parses the ค่าของ/ค่าแรง supplier-invoice-register sheets — a separate,
+ * cleaner labor-vs-material split than the free-text หมวด categories in the
+ * main ledger. These are imported as read-only SupplierInvoiceRecord rows for
+ * cost-breakdown reporting only, never as Bills, since the same cash flow is
+ * already captured via the main ledger import in parseLedgerWorkbook.
+ */
+export function parseSupplierInvoices(buffer: Buffer): { invoices: ParsedSupplierInvoice[]; skipped: ParseIssue[] } {
+  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+  const invoices: ParsedSupplierInvoice[] = [];
+  const skipped: ParseIssue[] = [];
+
+  for (const sheetName of workbook.SheetNames) {
+    const type = sheetInvoiceType(sheetName);
+    if (!type) continue;
+
+    const sheet = workbook.Sheets[sheetName];
+    const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null });
+    if (aoa.length === 0) continue;
+
+    const header = (aoa[0] as unknown[]).map((c) => String(c ?? '').trim());
+    const colIndex: Record<string, number> = {};
+    header.forEach((h, idx) => {
+      if (h) colIndex[h] = idx;
+    });
+    const vatKey = header.find((h) => h.toLowerCase().startsWith('vat'));
+
+    for (let r = 1; r < aoa.length; r++) {
+      const row = aoa[r] as unknown[];
+      const rowNum = r + 1;
+      if (!row || row.every((c) => c === null || c === undefined || c === '')) continue;
+
+      const get = (name: string) => (colIndex[name] !== undefined ? row[colIndex[name]] : null);
+      const invoiceDate = toDate(get('วันที่'));
+      const supplierName = String(get('Supplier') ?? '').trim();
+      const subtotal = toNumber(get('มูลค่า'));
+      const taxAmount = toNumber(vatKey ? row[colIndex[vatKey]] : null) ?? 0;
+      const totalAmount = toNumber(get('มูลค่ารวม')) ?? subtotal;
+
+      if (!invoiceDate || !supplierName || subtotal === null || totalAmount === null) {
+        skipped.push({
+          sheet: sheetName,
+          row: rowNum,
+          reason: 'ข้อมูลไม่ครบ (ต้องมีวันที่, Supplier, มูลค่า) ข้ามแถวนี้',
+        });
+        continue;
+      }
+
+      const taxIdRaw = get('Tax ID');
+      const invoiceNoRaw = get('Invoice No.');
+
+      invoices.push({
+        type,
+        invoiceDate,
+        supplierName,
+        taxId: taxIdRaw ? String(taxIdRaw).trim() : null,
+        invoiceNumber: invoiceNoRaw ? String(invoiceNoRaw).trim() : null,
+        subtotal: round2(subtotal),
+        taxAmount: round2(taxAmount),
+        totalAmount: round2(totalAmount),
+        sourceSheet: sheetName,
+        sourceRow: rowNum,
+      });
+    }
+  }
+
+  return { invoices, skipped };
 }
