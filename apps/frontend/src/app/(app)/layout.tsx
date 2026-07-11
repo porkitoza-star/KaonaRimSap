@@ -149,8 +149,13 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="w-full shrink-0 border-b border-gray-200 bg-white md:h-screen md:w-72 md:overflow-y-auto md:border-b-0 md:border-r">
-        <div className="sticky top-0 z-10 border-b-2 border-[#B8860B] bg-white px-4 py-4">
+      <aside
+        className="w-full shrink-0 border-b border-gray-200 bg-white bg-cover bg-top md:h-screen md:w-72 md:overflow-y-auto md:border-b-0 md:border-r"
+        style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)), url(/nav-bg.jpg)`,
+        }}
+      >
+        <div className="sticky top-0 z-10 border-b-2 border-[#B8860B] bg-white/95 px-4 py-4 backdrop-blur-sm">
           <p className="text-sm font-semibold text-[#1B5E3A]">ก้าวหน้า อสังหาริมทรัพย์</p>
           <p className="text-xs text-gray-500">
             {user?.name} ({user?.role})
