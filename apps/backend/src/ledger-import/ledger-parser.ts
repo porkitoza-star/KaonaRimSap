@@ -5,6 +5,8 @@ function round2(n: number) {
 }
 
 const DISCOUNT_KEYWORD = 'ส่วนลด';
+const CREDIT_NOTE_KEYWORD = 'ใบลดหนี้';
+const INCOME_CATEGORY_KEYWORD = 'รับเงิน';
 const GENERIC_METHODS = new Set(['เงินสด', 'โอน', 'โอนเงิน', 'บัตรเครดิต', 'เช็ค', 'แคชเชียร์เช็ค']);
 
 export interface ParsedBillGroup {
@@ -89,15 +91,19 @@ export function resolveIncomeContactName(desc: string): string {
 }
 
 /**
- * Parses every sheet in the workbook that looks like the real
- * "บัญชีรายรับ-รายจ่าย" ledger (has วันที่/รับเข้า/จ่ายออก columns).
- * Sheets with a different shape (e.g. ค่าของ/ค่าแรง supplier-invoice
- * registers) are silently skipped so their totals are never double-counted.
+ * Parses every sheet in the workbook that looks like the real, full-detail
+ * "บัญชีรายรับ-รายจ่าย" ledger (has วันที่/รับเข้า/จ่ายออก/VAT 7%/Total
+ * columns). Sheets with a different shape (e.g. ค่าของ/ค่าแรง
+ * supplier-invoice registers, or an older partial/superseded ledger tab
+ * that only has the first few columns) are silently skipped so their
+ * totals are never double-counted.
  *
  * Discount rows are recorded as negative รับเข้า in the source file even
  * though they reduce cost, not revenue — detected by the "ส่วนลด" keyword
  * and netted into the same-day/house/category expense group instead of
- * being imported as negative income.
+ * being imported as negative income. A "ใบลดหนี้" (credit note) row is
+ * recorded as a *positive* รับเข้า even though it also reduces cost, not
+ * revenue — it's netted the same way as a discount.
  */
 export function parseLedgerWorkbook(buffer: Buffer): ParsedLedger {
   const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
@@ -113,7 +119,13 @@ export function parseLedgerWorkbook(buffer: Buffer): ParsedLedger {
     const colIndex: Record<string, number> = {};
     for (let i = 0; i < Math.min(aoa.length, 5); i++) {
       const row = (aoa[i] as unknown[]).map((c) => String(c ?? '').trim());
-      if (row.includes('วันที่') && row.includes('รับเข้า') && row.includes('จ่ายออก')) {
+      if (
+        row.includes('วันที่') &&
+        row.includes('รับเข้า') &&
+        row.includes('จ่ายออก') &&
+        row.includes('VAT 7%') &&
+        row.includes('Total')
+      ) {
         headerRowIdx = i;
         row.forEach((h, idx) => {
           if (h) colIndex[h] = idx;
@@ -162,7 +174,16 @@ export function parseLedgerWorkbook(buffer: Buffer): ParsedLedger {
       if (typeof dateRaw === 'string' && dateRaw.trim().length > 0) continue;
 
       const isDiscountAdjustment = rec !== null && rec < 0 && description.includes(DISCOUNT_KEYWORD);
-      const isStandaloneIncome = rec !== null && rec > 0 && !category && house.length > 0;
+      const isCreditNoteAdjustment =
+        rec !== null &&
+        rec > 0 &&
+        (description.includes(CREDIT_NOTE_KEYWORD) || method === CREDIT_NOTE_KEYWORD);
+      const isStandaloneIncome =
+        rec !== null &&
+        rec > 0 &&
+        !isCreditNoteAdjustment &&
+        house.length > 0 &&
+        (!category || category === INCOME_CATEGORY_KEYWORD);
 
       if (isStandaloneIncome) {
         flush();
@@ -180,8 +201,8 @@ export function parseLedgerWorkbook(buffer: Buffer): ParsedLedger {
         continue;
       }
 
-      if (pay !== null || isDiscountAdjustment) {
-        const delta = isDiscountAdjustment ? -Math.abs(rec!) : pay!;
+      if (pay !== null || isDiscountAdjustment || isCreditNoteAdjustment) {
+        const delta = isDiscountAdjustment || isCreditNoteAdjustment ? -Math.abs(rec!) : pay!;
         const key = `${date ? date.toISOString() : 'nodate'}|${house}|${category}`;
         if (currentGroup && currentKey === key) {
           currentGroup.amount = round2(currentGroup.amount + delta);

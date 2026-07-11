@@ -421,6 +421,8 @@ export interface LedgerImportPreview {
 export interface LedgerImportCommitResult {
   createdBills: number;
   createdInvoices: number;
+  duplicateBills: number;
+  duplicateInvoices: number;
   costCentersCreated: number;
   contactsCreated: number;
   skipped: number;

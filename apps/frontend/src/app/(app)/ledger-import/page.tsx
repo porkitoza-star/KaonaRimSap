@@ -289,10 +289,20 @@ export default function LedgerImportPage() {
             <div>
               <p className="text-xs text-gray-500">บิลที่สร้าง</p>
               <p className="text-lg font-semibold">{commitResult.createdBills.toLocaleString('th-TH')}</p>
+              {commitResult.duplicateBills > 0 && (
+                <p className="text-xs text-gray-400">
+                  ข้ามรายการซ้ำ {commitResult.duplicateBills.toLocaleString('th-TH')} รายการ
+                </p>
+              )}
             </div>
             <div>
               <p className="text-xs text-gray-500">ใบแจ้งหนี้ที่สร้าง</p>
               <p className="text-lg font-semibold">{commitResult.createdInvoices.toLocaleString('th-TH')}</p>
+              {commitResult.duplicateInvoices > 0 && (
+                <p className="text-xs text-gray-400">
+                  ข้ามรายการซ้ำ {commitResult.duplicateInvoices.toLocaleString('th-TH')} รายการ
+                </p>
+              )}
             </div>
             <div>
               <p className="text-xs text-gray-500">Cost Center ใหม่</p>
