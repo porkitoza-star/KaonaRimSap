@@ -1,17 +1,10 @@
-import type { DashboardGranularity, LaborMaterialPeriod } from '@/lib/types';
+import type { LaborMaterialPeriod } from '@/lib/types';
 import { GroupedBarChart } from './grouped-bar-chart';
 
-export function LaborMaterialChart({
-  series,
-  granularity,
-}: {
-  series: LaborMaterialPeriod[];
-  granularity: DashboardGranularity;
-}) {
+export function LaborMaterialChart({ series }: { series: LaborMaterialPeriod[] }) {
   return (
     <GroupedBarChart
       data={series.map((s) => ({ period: s.period, a: s.labor, b: s.material }))}
-      granularity={granularity}
       seriesALabel="ค่าแรงช่าง"
       seriesBLabel="ค่าวัสดุ"
       colorA="#B8860B"

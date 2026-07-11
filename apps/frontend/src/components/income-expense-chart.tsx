@@ -1,17 +1,10 @@
-import type { DashboardGranularity, IncomeExpensePeriod } from '@/lib/types';
+import type { IncomeExpensePeriod } from '@/lib/types';
 import { GroupedBarChart } from './grouped-bar-chart';
 
-export function IncomeExpenseChart({
-  series,
-  granularity,
-}: {
-  series: IncomeExpensePeriod[];
-  granularity: DashboardGranularity;
-}) {
+export function IncomeExpenseChart({ series }: { series: IncomeExpensePeriod[] }) {
   return (
     <GroupedBarChart
       data={series.map((s) => ({ period: s.period, a: s.income, b: s.expense }))}
-      granularity={granularity}
       seriesALabel="รายรับ"
       seriesBLabel="รายจ่าย"
       colorA="#1B5E3A"
