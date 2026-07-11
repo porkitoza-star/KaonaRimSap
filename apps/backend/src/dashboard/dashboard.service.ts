@@ -20,6 +20,17 @@ function capToRecent<T>(series: T[], granularity: Granularity): T[] {
   return series.slice(series.length - MAX_DAY_POINTS);
 }
 
+// Matches labor-related descriptions in the main ledger import (e.g.
+// "ค่าแรงช่างเหมางานเบิกเงินงวดที่ 2", "ค่าของโอนให้ช่างยุทธ") that never went
+// through a formal ค่าแรง supplier-invoice register — the register only
+// covers invoiced labor contractors, while day-to-day cash payments to named
+// workers show up only as free-text lines in the main ledger.
+const LABOR_KEYWORDS = ['ค่าแรง', 'ค่าจ้าง', 'ช่าง'];
+
+function isLaborDescription(description: string): boolean {
+  return LABOR_KEYWORDS.some((k) => description.includes(k));
+}
+
 function periodKey(granularity: Granularity): (d: Date) => string {
   if (granularity === 'day') {
     return (d) =>
@@ -303,18 +314,36 @@ export class DashboardService {
   }
 
   async getLaborMaterialPaid(granularity: Granularity = 'month') {
-    const invoices = await this.prisma.supplierInvoiceRecord.findMany({
-      select: { type: true, invoiceDate: true, totalAmount: true },
-    });
+    const [supplierInvoices, bills] = await Promise.all([
+      this.prisma.supplierInvoiceRecord.findMany({
+        select: { type: true, invoiceDate: true, totalAmount: true },
+      }),
+      this.prisma.bill.findMany({
+        where: { status: { not: BillStatus.VOID } },
+        select: { issueDate: true, lines: { select: { amount: true, description: true } } },
+      }),
+    ]);
 
     const key = periodKey(granularity);
     const seriesMap = new Map<string, { labor: number; material: number }>();
-    for (const inv of invoices) {
+    for (const inv of supplierInvoices) {
       const k = key(inv.invoiceDate);
       const entry = seriesMap.get(k) ?? { labor: 0, material: 0 };
       if (inv.type === 'LABOR') entry.labor += Number(inv.totalAmount);
       else entry.material += Number(inv.totalAmount);
       seriesMap.set(k, entry);
+    }
+
+    let laborFromLedgerKeywords = 0;
+    for (const bill of bills) {
+      const k = key(bill.issueDate);
+      for (const line of bill.lines) {
+        if (!isLaborDescription(line.description)) continue;
+        const entry = seriesMap.get(k) ?? { labor: 0, material: 0 };
+        entry.labor += Number(line.amount);
+        seriesMap.set(k, entry);
+        laborFromLedgerKeywords += Number(line.amount);
+      }
     }
 
     const series = capToRecent(
@@ -324,13 +353,18 @@ export class DashboardService {
       granularity,
     );
 
+    const totalLaborFromRegister = supplierInvoices
+      .filter((i) => i.type === 'LABOR')
+      .reduce((sum, i) => sum + Number(i.totalAmount), 0);
+
     return {
       granularity,
       series,
-      totalLabor: round2(invoices.filter((i) => i.type === 'LABOR').reduce((sum, i) => sum + Number(i.totalAmount), 0)),
+      totalLabor: round2(totalLaborFromRegister + laborFromLedgerKeywords),
       totalMaterial: round2(
-        invoices.filter((i) => i.type === 'MATERIAL').reduce((sum, i) => sum + Number(i.totalAmount), 0),
+        supplierInvoices.filter((i) => i.type === 'MATERIAL').reduce((sum, i) => sum + Number(i.totalAmount), 0),
       ),
+      totalLaborFromLedgerKeywords: round2(laborFromLedgerKeywords),
     };
   }
 }
