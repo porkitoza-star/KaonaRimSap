@@ -416,6 +416,19 @@ export interface LedgerImportPreview {
   totalMaterialAmount: number;
   totalLaborAmount: number;
   supplierInvoiceSkippedCount: number;
+  duplicateBillCount: number;
+  duplicateInvoiceCount: number;
+}
+
+export interface LedgerImportLogEntry {
+  id: string;
+  fileName: string;
+  uploadedAt: string;
+  billCount: number;
+  invoiceCount: number;
+  duplicateBillCount: number;
+  duplicateInvoiceCount: number;
+  forcedDuplicates: boolean;
 }
 
 export interface LedgerImportCommitResult {

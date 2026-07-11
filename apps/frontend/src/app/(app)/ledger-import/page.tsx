@@ -1,13 +1,11 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api, ApiError } from '@/lib/api';
 import { formatThb, formatDate } from '@/lib/format';
-import { card, primaryButton, dangerButton, secondaryButton, errorBanner, input, label } from '@/lib/ui';
-import type { LedgerImportPreview, LedgerImportCommitResult } from '@/lib/types';
-
-const CONFIRM_PHRASE = 'ยืนยันนำเข้า';
+import { card, primaryButton, goodButton, secondaryButton, errorBanner, label } from '@/lib/ui';
+import type { LedgerImportPreview, LedgerImportCommitResult, LedgerImportLogEntry } from '@/lib/types';
 
 export default function LedgerImportPage() {
   const { token, user } = useAuth();
@@ -18,10 +16,25 @@ export default function LedgerImportPage() {
   const [preview, setPreview] = useState<LedgerImportPreview | null>(null);
   const [commitResult, setCommitResult] = useState<LedgerImportCommitResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmText, setConfirmText] = useState('');
+  const [duplicateChoice, setDuplicateChoice] = useState<'skip' | 'force'>('skip');
+  const [history, setHistory] = useState<LedgerImportLogEntry[]>([]);
 
   const canPreview = user?.role === 'ACCOUNTANT' || user?.role === 'CFO' || user?.role === 'CEO';
   const canCommit = user?.role === 'CEO';
+
+  async function loadHistory() {
+    if (!token) return;
+    try {
+      setHistory(await api.get<LedgerImportLogEntry[]>('/ledger-import/history', token));
+    } catch {
+      // history is a convenience view — silently ignore load failures here
+    }
+  }
+
+  useEffect(() => {
+    loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   function getSelectedFile(): File | null {
     return fileInputRef.current?.files?.[0] ?? null;
@@ -34,6 +47,7 @@ export default function LedgerImportPage() {
     setError(null);
     setPreview(null);
     setCommitResult(null);
+    setDuplicateChoice('skip');
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -48,16 +62,17 @@ export default function LedgerImportPage() {
 
   async function handleCommit() {
     const file = getSelectedFile();
-    if (!file || !token || confirmText !== CONFIRM_PHRASE) return;
+    if (!file || !token) return;
     setCommitting(true);
     setError(null);
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('forceDuplicates', duplicateChoice === 'force' ? 'true' : 'false');
       const res = await api.post<LedgerImportCommitResult>('/ledger-import/commit', formData, token);
       setCommitResult(res);
       setPreview(null);
-      setConfirmText('');
+      await loadHistory();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'นำเข้าข้อมูลจริงไม่สำเร็จ');
     } finally {
@@ -234,6 +249,35 @@ export default function LedgerImportPage() {
             </div>
           </div>
 
+          {(preview.duplicateBillCount > 0 || preview.duplicateInvoiceCount > 0) && (
+            <div className={`${card} space-y-3 border border-[#B8860B]/40 bg-[#B8860B]/5`}>
+              <p className="text-sm font-medium text-gray-900">
+                พบรายการที่ดูซ้ำกับข้อมูลที่มีอยู่แล้ว {preview.duplicateBillCount + preview.duplicateInvoiceCount}{' '}
+                รายการ (บิล {preview.duplicateBillCount.toLocaleString('th-TH')}, ใบแจ้งหนี้{' '}
+                {preview.duplicateInvoiceCount.toLocaleString('th-TH')})
+              </p>
+              <p className="text-xs text-gray-500">
+                ระบบเทียบจาก Cost Center + รายละเอียด + จำนวนเงินที่ตรงกันทุกอย่าง เลือกวิธีจัดการก่อนยืนยันนำเข้า
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setDuplicateChoice('skip')}
+                  className={duplicateChoice === 'skip' ? primaryButton : secondaryButton}
+                >
+                  ข้ามรายการซ้ำ (แนะนำ)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDuplicateChoice('force')}
+                  className={duplicateChoice === 'force' ? primaryButton : secondaryButton}
+                >
+                  นำเข้าซ้ำเป็นรายการเพิ่มเติมทั้งหมด
+                </button>
+              </div>
+            </div>
+          )}
+
           {(preview.skipped.length > 0 || preview.errors.length > 0) && (
             <div className={card}>
               <p className="mb-2 text-sm font-medium text-gray-700">รายการที่ข้ามหรือต้องตรวจสอบเอง</p>
@@ -251,28 +295,14 @@ export default function LedgerImportPage() {
           )}
 
           {canCommit ? (
-            <div className={`${card} space-y-3 border border-[#d03b3b]/30`}>
+            <div className={`${card} space-y-3`}>
               <p className="text-sm font-medium text-gray-900">
                 ยืนยันนำเข้าข้อมูลจริง ({preview.billCount + preview.invoiceCount} รายการ)
               </p>
               <p className="text-xs text-gray-500">
-                การกดยืนยันจะสร้างบิล/ใบแจ้งหนี้/การชำระเงินจริงในระบบทันทีและ<b>ไม่สามารถย้อนกลับได้</b>
-                กรุณาตรวจสอบตัวอย่างข้อมูลด้านบนให้ครบถ้วนก่อน หากถูกต้องแล้ว
-                ให้พิมพ์คำว่า &quot;{CONFIRM_PHRASE}&quot; ในช่องด้านล่างเพื่อปลดล็อกปุ่มยืนยัน
+                การกดยืนยันจะสร้างบิล/ใบแจ้งหนี้/การชำระเงินจริงในระบบทันที กรุณาตรวจสอบตัวอย่างข้อมูลด้านบนก่อนกด
               </p>
-              <input
-                type="text"
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                placeholder={CONFIRM_PHRASE}
-                className={input}
-              />
-              <button
-                type="button"
-                disabled={confirmText !== CONFIRM_PHRASE || committing}
-                onClick={handleCommit}
-                className={dangerButton}
-              >
+              <button type="button" disabled={committing} onClick={handleCommit} className={goodButton}>
                 {committing ? 'กำลังนำเข้าข้อมูลจริง...' : 'ยืนยันนำเข้าข้อมูลจริงเข้าสู่ระบบ'}
               </button>
             </div>
@@ -335,6 +365,39 @@ export default function LedgerImportPage() {
           <button type="button" onClick={() => setCommitResult(null)} className={secondaryButton}>
             ปิด
           </button>
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <div className={card}>
+          <p className="mb-2 text-sm font-medium text-gray-700">ประวัติการนำเข้าไฟล์ (เก็บไว้ทุกครั้ง)</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-xs text-gray-500">
+                  <th className="py-2 pr-4 font-medium">วันที่นำเข้า</th>
+                  <th className="py-2 pr-4 font-medium">ไฟล์</th>
+                  <th className="py-2 pr-4 text-right font-medium">บิลที่สร้าง</th>
+                  <th className="py-2 pr-4 text-right font-medium">ใบแจ้งหนี้ที่สร้าง</th>
+                  <th className="py-2 pr-4 text-right font-medium">ข้ามซ้ำ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((h) => (
+                  <tr key={h.id} className="border-b border-gray-50">
+                    <td className="py-2 pr-4 text-xs text-gray-500">{formatDate(h.uploadedAt)}</td>
+                    <td className="py-2 pr-4">{h.fileName}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{h.billCount.toLocaleString('th-TH')}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{h.invoiceCount.toLocaleString('th-TH')}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-gray-500">
+                      {(h.duplicateBillCount + h.duplicateInvoiceCount).toLocaleString('th-TH')}
+                      {h.forcedDuplicates ? ' (นำเข้าซ้ำ)' : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
