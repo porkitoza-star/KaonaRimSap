@@ -213,9 +213,41 @@ export interface ConstructionPhasesSummary {
   monthlyActual: ValueCurvePoint[];
 }
 
+export interface GanttTableRow {
+  phaseId: string;
+  sequence: number;
+  category: string;
+  name: string;
+  contractValue: number;
+  percentOfTotal: number;
+  percentComplete: number;
+  valueByMonth: Record<string, number>;
+}
+
+export interface GanttCashFlowPoint {
+  month: string;
+  cumulativeIncome: number;
+  cumulativeCost: number;
+  net: number;
+}
+
+export interface GanttCumulativePoint {
+  month: string;
+  value: number;
+  percent: number;
+}
+
+export interface GanttTable {
+  months: string[];
+  rows: GanttTableRow[];
+  cumulativeValue: GanttCumulativePoint[];
+  cashFlow: GanttCashFlowPoint[];
+}
+
 export interface ConstructionPhasesResponse {
   phases: ConstructionPhase[];
   summary: ConstructionPhasesSummary;
+  ganttTable: GanttTable;
 }
 
 export interface PaymentMilestone {
