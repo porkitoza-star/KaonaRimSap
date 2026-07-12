@@ -158,24 +158,24 @@ export default function DashboardPage() {
       <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
         <h2 className="text-sm font-semibold text-gray-900">กำไรขาดทุนแยกตามโครงการ/บ้าน (P&amp;L by Cost Center)</h2>
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[560px] text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs text-gray-500">
-                <th className="py-2 pr-4 font-medium">โครงการ / บ้าน</th>
-                <th className="py-2 pr-4 text-right font-medium">รายได้</th>
-                <th className="py-2 pr-4 text-right font-medium">ต้นทุน/ค่าใช้จ่าย</th>
-                <th className="py-2 text-right font-medium">กำไร(ขาดทุน)</th>
+                <th className="whitespace-nowrap py-2 pr-4 font-medium">โครงการ / บ้าน</th>
+                <th className="whitespace-nowrap py-2 pr-4 text-right font-medium">รายได้</th>
+                <th className="whitespace-nowrap py-2 pr-4 text-right font-medium">ต้นทุน/ค่าใช้จ่าย</th>
+                <th className="whitespace-nowrap py-2 text-right font-medium">กำไร(ขาดทุน)</th>
               </tr>
             </thead>
             <tbody>
               {pnl && pnl.length > 0 ? (
                 pnl.map((row) => (
                   <tr key={row.costCenterId} className="border-b border-gray-50">
-                    <td className="py-2 pr-4">{row.costCenterName}</td>
-                    <td className="py-2 pr-4 text-right tabular-nums">{formatThb(row.revenue)}</td>
-                    <td className="py-2 pr-4 text-right tabular-nums">{formatThb(row.expense)}</td>
+                    <td className="whitespace-nowrap py-2 pr-4">{row.costCenterName}</td>
+                    <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums">{formatThb(row.revenue)}</td>
+                    <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums">{formatThb(row.expense)}</td>
                     <td
-                      className={`py-2 text-right tabular-nums ${row.profit < 0 ? 'text-[#d03b3b]' : 'text-[#0ca30c]'}`}
+                      className={`whitespace-nowrap py-2 text-right tabular-nums ${row.profit < 0 ? 'text-[#d03b3b]' : 'text-[#0ca30c]'}`}
                     >
                       {formatThb(row.profit)}
                     </td>

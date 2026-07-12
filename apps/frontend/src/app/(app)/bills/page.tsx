@@ -161,29 +161,29 @@ export default function BillsPage() {
 
       <div className={card}>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs text-gray-500">
-                <th className="py-2 pr-4 font-medium">เลขที่</th>
-                <th className="py-2 pr-4 font-medium">คู่ค้า</th>
-                <th className="py-2 pr-4 font-medium">ครบกำหนด</th>
-                <th className="py-2 pr-4 text-right font-medium">ยอดรวม</th>
-                <th className="py-2 pr-4 font-medium">สถานะ</th>
-                {canManage && <th className="py-2 font-medium">การดำเนินการ</th>}
+                <th className="whitespace-nowrap py-2 pr-4 font-medium">เลขที่</th>
+                <th className="whitespace-nowrap py-2 pr-4 font-medium">คู่ค้า</th>
+                <th className="whitespace-nowrap py-2 pr-4 font-medium">ครบกำหนด</th>
+                <th className="whitespace-nowrap py-2 pr-4 text-right font-medium">ยอดรวม</th>
+                <th className="whitespace-nowrap py-2 pr-4 font-medium">สถานะ</th>
+                {canManage && <th className="whitespace-nowrap py-2 font-medium">การดำเนินการ</th>}
               </tr>
             </thead>
             <tbody>
               {bills.map((bill) => (
                 <tr key={bill.id} className="border-b border-gray-50">
-                  <td className="py-2 pr-4">{bill.number}</td>
-                  <td className="py-2 pr-4">{bill.contact?.name}</td>
-                  <td className="py-2 pr-4 text-xs text-gray-500">{formatDate(bill.dueDate)}</td>
-                  <td className="py-2 pr-4 text-right tabular-nums">{formatThb(bill.totalAmount)}</td>
-                  <td className="py-2 pr-4">
+                  <td className="whitespace-nowrap py-2 pr-4">{bill.number}</td>
+                  <td className="whitespace-nowrap py-2 pr-4">{bill.contact?.name}</td>
+                  <td className="whitespace-nowrap py-2 pr-4 text-xs text-gray-500">{formatDate(bill.dueDate)}</td>
+                  <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums">{formatThb(bill.totalAmount)}</td>
+                  <td className="whitespace-nowrap py-2 pr-4">
                     <StatusBadge status={bill.status} />
                   </td>
                   {canManage && (
-                    <td className="py-2">
+                    <td className="whitespace-nowrap py-2">
                       {bill.status === 'DRAFT' && (
                         <div className="flex gap-2">
                           <button

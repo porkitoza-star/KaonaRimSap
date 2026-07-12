@@ -151,7 +151,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside
-        className="w-full shrink-0 border-b border-gray-200 bg-white bg-cover bg-top md:h-screen md:w-72 md:overflow-y-auto md:border-b-0 md:border-r"
+        className="relative z-20 w-full shrink-0 border-b border-gray-200 bg-white bg-cover bg-top md:h-screen md:w-72 md:overflow-y-auto md:border-b-0 md:border-r"
         style={{
           backgroundImage: `linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)), url(/nav-bg.jpg)`,
         }}
