@@ -39,6 +39,7 @@ const BASE_NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/materials', shortLabel: 'วัสดุ/สต๊อก', icon: '🧱', color: '#A2845E' },
       { href: '/boq-templates', shortLabel: 'เทมเพลต BOQ', icon: '📐', color: '#5AC8FA' },
+      { href: '/cost-estimator', shortLabel: 'ประมาณราคา', icon: '🧮', color: '#BF5AF2' },
       { href: '/construction', shortLabel: 'งานก่อสร้าง', icon: '🏗️', color: '#FF9F0A' },
     ],
   },

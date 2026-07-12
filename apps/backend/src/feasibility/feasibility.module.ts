@@ -5,5 +5,6 @@ import { FeasibilityController } from './feasibility.controller';
 @Module({
   providers: [FeasibilityService],
   controllers: [FeasibilityController],
+  exports: [FeasibilityService],
 })
 export class FeasibilityModule {}
