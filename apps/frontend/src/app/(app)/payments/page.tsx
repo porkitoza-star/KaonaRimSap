@@ -144,27 +144,29 @@ export default function PaymentsPage() {
       <div className={card}>
         <h2 className="text-sm font-semibold text-gray-900">รายการจ่าย-รับเงิน</h2>
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[600px] text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs text-gray-500">
-                <th className="py-2 pr-4 font-medium">ประเภท</th>
-                <th className="py-2 pr-4 text-right font-medium">จำนวนเงิน</th>
-                <th className="py-2 pr-4 font-medium">ผู้เสนอ</th>
-                <th className="py-2 pr-4 font-medium">สถานะ</th>
-                {canApprove && <th className="py-2 font-medium">การดำเนินการ</th>}
+                <th className="whitespace-nowrap py-2 pr-4 font-medium">ประเภท</th>
+                <th className="whitespace-nowrap py-2 pr-4 text-right font-medium">จำนวนเงิน</th>
+                <th className="whitespace-nowrap py-2 pr-4 font-medium">ผู้เสนอ</th>
+                <th className="whitespace-nowrap py-2 pr-4 font-medium">สถานะ</th>
+                {canApprove && <th className="whitespace-nowrap py-2 font-medium">การดำเนินการ</th>}
               </tr>
             </thead>
             <tbody>
               {payments.map((p) => (
                 <tr key={p.id} className="border-b border-gray-50">
-                  <td className="py-2 pr-4 text-xs text-gray-500">{p.direction === 'PAY' ? 'จ่ายเงิน' : 'รับเงิน'}</td>
-                  <td className="py-2 pr-4 text-right tabular-nums">{formatThb(p.amount)}</td>
-                  <td className="py-2 pr-4 text-xs text-gray-500">{p.proposedBy?.name ?? '-'}</td>
-                  <td className="py-2 pr-4">
+                  <td className="whitespace-nowrap py-2 pr-4 text-xs text-gray-500">
+                    {p.direction === 'PAY' ? 'จ่ายเงิน' : 'รับเงิน'}
+                  </td>
+                  <td className="whitespace-nowrap py-2 pr-4 text-right tabular-nums">{formatThb(p.amount)}</td>
+                  <td className="whitespace-nowrap py-2 pr-4 text-xs text-gray-500">{p.proposedBy?.name ?? '-'}</td>
+                  <td className="whitespace-nowrap py-2 pr-4">
                     <StatusBadge status={p.status} />
                   </td>
                   {canApprove && (
-                    <td className="py-2">
+                    <td className="whitespace-nowrap py-2">
                       {(p.status === 'PENDING_CFO_APPROVAL' || p.status === 'PENDING_CEO_APPROVAL') && (
                         <div className="flex gap-2">
                           <button

@@ -83,7 +83,16 @@ export default function LedgerImportPage() {
 
       <div className={`${card} space-y-3`}>
         <label className={label}>เลือกไฟล์ Excel (.xlsx, .xls)</label>
+        <label
+          htmlFor="ledger-import-file"
+          className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-center text-sm text-gray-600 transition hover:border-[#1B5E3A] hover:bg-gray-100"
+        >
+          <span className="text-2xl">📎</span>
+          <span className="font-medium">{fileName ?? 'แตะเพื่อเลือกไฟล์ Excel'}</span>
+          {!fileName && <span className="text-xs text-gray-400">รองรับไฟล์ .xlsx และ .xls</span>}
+        </label>
         <input
+          id="ledger-import-file"
           ref={fileInputRef}
           type="file"
           accept=".xlsx,.xls"
@@ -92,7 +101,7 @@ export default function LedgerImportPage() {
             setPreview(null);
             setCommitResult(null);
           }}
-          className="block text-sm"
+          className="sr-only"
         />
         <button
           type="button"

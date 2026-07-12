@@ -190,21 +190,18 @@ function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </aside>
-      <main className="relative flex-1 p-4 md:p-8">
-        {/* Fixed (viewport-relative, not content-height-relative) so the image
-            doesn't stretch/tile oddly on long scrolling pages, and avoids
-            iOS Safari's buggy background-attachment:fixed. */}
-        <div
-          className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.78), rgba(255,255,255,0.78)), url(/content-bg.jpg)`,
-          }}
-        />
-        {/* Its own positioned stacking context so it reliably paints above
-            the fixed background div regardless of DOM order (a positioned
-            z-indexed element doesn't automatically outrank plain static
-            content just by coming later in the tree). */}
-        <div className="relative z-10">{children}</div>
+      {/* Background painted directly on main's own box (not a separate
+          fixed/positioned layer) so it can never bleed into the sidebar or
+          get into a z-index fight with page content - it's just this
+          element's own background, which always paints behind its own
+          children by definition. */}
+      <main
+        className="flex-1 bg-cover bg-top p-4 md:p-8"
+        style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.78), rgba(255,255,255,0.78)), url(/content-bg.jpg)`,
+        }}
+      >
+        {children}
       </main>
     </div>
   );
