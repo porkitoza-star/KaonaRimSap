@@ -4,10 +4,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { BillsService } from '../bills/bills.service';
+import { MaterialsService } from '../materials/materials.service';
 import { buildExcelBuffer } from '../common/excel-export.util';
 import { LocalStorageService } from './storage/local-storage.service';
 import { ClaudeOcrService } from './ocr/claude-ocr.service';
 import { ConfirmDocumentDto } from './dto/confirm-document.dto';
+import { ImportBoqItemsDto } from './dto/import-boq-items.dto';
 
 @Injectable()
 export class DocumentsService {
@@ -20,19 +22,28 @@ export class DocumentsService {
     private ocr: ClaudeOcrService,
     private contacts: ContactsService,
     private bills: BillsService,
+    private materials: MaterialsService,
   ) {}
 
   async upload(file: Express.Multer.File, userId: string, category: DocumentCategory) {
     const fileUrl = await this.storage.save(file.buffer, file.originalname);
 
-    // OCR is tuned for reading bill/tax-invoice amounts; other document
-    // categories (BOQ, permits, blueprints, POs, photos) are just filed as-is.
+    // Other document categories (permits, POs, photos) are just filed as-is.
     let ocrRawJson: object | undefined;
     if (category === DocumentCategory.BILL && file.mimetype.startsWith('image/')) {
       try {
         ocrRawJson = (await this.ocr.extractBillData(file.buffer, file.mimetype)) as unknown as object;
       } catch (err) {
         this.logger.warn(`OCR extraction failed, leaving document for manual entry: ${err}`);
+      }
+    } else if (
+      category === DocumentCategory.BOQ &&
+      (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf')
+    ) {
+      try {
+        ocrRawJson = (await this.ocr.extractBoqData(file.buffer, file.mimetype)) as unknown as object;
+      } catch (err) {
+        this.logger.warn(`BOQ extraction failed, leaving document as file-only: ${err}`);
       }
     }
 
@@ -131,6 +142,34 @@ export class DocumentsService {
       after: updated,
     });
     return updated;
+  }
+
+  async importBoqItems(id: string, dto: ImportBoqItemsDto, userId: string) {
+    await this.findOne(id);
+    const created = [];
+    for (const item of dto.items) {
+      const materialItem = await this.materials.create(
+        {
+          costCenterId: dto.costCenterId,
+          category: item.category?.trim() || 'จากเอกสาร BOQ',
+          name: item.name,
+          unit: item.unit?.trim() || 'หน่วย',
+          plannedQuantity: item.quantity ?? 0,
+          notes: item.unitPrice ? `ราคาต่อหน่วย ~${item.unitPrice} บาท (จาก OCR เอกสาร)` : undefined,
+        },
+        userId,
+      );
+      created.push(materialItem);
+    }
+
+    await this.audit.log({
+      userId,
+      action: 'IMPORT_BOQ_ITEMS',
+      entityType: 'Document',
+      entityId: id,
+      after: { costCenterId: dto.costCenterId, createdCount: created.length },
+    });
+    return { createdCount: created.length };
   }
 
   async reject(id: string, userId: string, notes: string | undefined) {
