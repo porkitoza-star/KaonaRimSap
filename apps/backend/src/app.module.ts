@@ -23,6 +23,7 @@ import { PaymentMilestonesModule } from './payment-milestones/payment-milestones
 import { BoqTemplatesModule } from './boq-templates/boq-templates.module';
 import { LedgerImportModule } from './ledger-import/ledger-import.module';
 import { CostEstimatorModule } from './cost-estimator/cost-estimator.module';
+import { MarketAnalysisModule } from './market-analysis/market-analysis.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { CostEstimatorModule } from './cost-estimator/cost-estimator.module';
     BoqTemplatesModule,
     LedgerImportModule,
     CostEstimatorModule,
+    MarketAnalysisModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

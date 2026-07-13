@@ -17,6 +17,13 @@ interface NavGroup {
   items: NavItem[];
 }
 
+const MARKET_ANALYSIS_NAV_ITEM: NavItem = {
+  href: '/market-analysis',
+  shortLabel: 'วิเคราะห์ตลาด AI',
+  icon: '🧭',
+  color: '#0A84FF',
+};
+
 const BASE_NAV_GROUPS: NavGroup[] = [
   {
     title: 'ภาพรวม',
@@ -121,6 +128,32 @@ function NavTile({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
+// A deliberately oversized, RECTANGULAR banner tile (not the square gem
+// AppIcon used everywhere else) so the Market Analysis / Red-Blue-Ocean
+// feature stands out at a glance in the nav, per explicit request.
+function MarketAnalysisBanner({ active }: { active: boolean }) {
+  return (
+    <Link
+      href={MARKET_ANALYSIS_NAV_ITEM.href}
+      className={`relative flex items-center gap-3 overflow-hidden rounded-2xl px-4 py-4 shadow-[0_10px_20px_rgba(10,50,120,0.3),0_2px_6px_rgba(0,0,0,0.18)] ring-2 transition ${
+        active ? 'ring-[#FFD60A]' : 'ring-white/40'
+      }`}
+      style={{
+        background: 'linear-gradient(115deg, #d62839 0%, #b8102a 30%, #0A3D91 68%, #0A84FF 100%)',
+      }}
+    >
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/25 to-transparent" />
+      <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-3xl shadow-inner">
+        {MARKET_ANALYSIS_NAV_ITEM.icon}
+      </span>
+      <span className="relative flex flex-col">
+        <span className="text-sm font-bold leading-tight text-white">{MARKET_ANALYSIS_NAV_ITEM.shortLabel}</span>
+        <span className="text-[11px] font-medium leading-tight text-white/85">Red Ocean vs Blue Ocean</span>
+      </span>
+    </Link>
+  );
+}
+
 function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
@@ -161,6 +194,10 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <p className="text-xs text-gray-500">
             {user?.name} ({user?.role})
           </p>
+        </div>
+
+        <div className="px-3 pt-3 md:px-4">
+          <MarketAnalysisBanner active={pathname.startsWith(MARKET_ANALYSIS_NAV_ITEM.href)} />
         </div>
 
         {mergedGroups.map((group) => (

@@ -140,6 +140,8 @@ model CostCenter {
   constructionPhases ConstructionPhase[]
   feasibilityStudy  ProjectFeasibility?
   paymentMilestones PaymentMilestone[]
+  marketComparables MarketComparable[]
+  marketAnalysisReport MarketAnalysisReport?
 
   @@map("cost_centers")
 }
@@ -517,4 +519,57 @@ model SupplierInvoiceRecord {
   createdAt     DateTime            @default(now())
 
   @@map("supplier_invoice_records")
+}
+
+enum MarketPositioning {
+  RED_OCEAN
+  BLUE_OCEAN
+}
+
+// A competitor/comparable project entry used for site & market analysis
+// (ทำเล/ราคา/โปรโมชั่น/อัตราการขาย) — manually entered by whoever is doing
+// the market research, one row per nearby competing project.
+model MarketComparable {
+  id             String     @id @default(uuid())
+  costCenterId   String
+  costCenter     CostCenter @relation(fields: [costCenterId], references: [id])
+  projectName    String
+  developerName  String?
+  location       String
+  distanceKm     Decimal?   @db.Decimal(6, 2)
+  houseType      String?
+  usableAreaSqm  Decimal?   @db.Decimal(10, 2)
+  priceMin       Decimal    @db.Decimal(15, 2)
+  priceMax       Decimal    @db.Decimal(15, 2)
+  unitsTotal     Int?
+  unitsSold      Int?
+  launchDate     DateTime?
+  promotion      String?
+  notes          String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@map("market_comparables")
+}
+
+// AI-generated market-positioning narrative for a project (Red Ocean = many
+// close, similarly-priced competitors / commodity price war; Blue Ocean =
+// few/no direct competitors or a clearly differentiated position),
+// regenerated on demand from the comparables + the project's own price and
+// promotion.
+model MarketAnalysisReport {
+  id               String             @id @default(uuid())
+  costCenterId     String             @unique
+  costCenter       CostCenter         @relation(fields: [costCenterId], references: [id])
+  ownPricePerSqm   Decimal?           @db.Decimal(12, 2)
+  ownPromotion     String?
+  positioning      MarketPositioning?
+  positioningScore Decimal?           @db.Decimal(5, 2)
+  summary          String?
+  recommendations  String?
+  generatedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@map("market_analysis_reports")
 }
