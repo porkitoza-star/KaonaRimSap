@@ -140,9 +140,9 @@ async function seedUsers() {
 
   await prisma.user.upsert({
     where: { email: 'ceo@kaonaa.co.th' },
-    update: {},
+    update: { name: 'ทศพล พรมยิ่ง' },
     create: {
-      name: 'สมชาย ก้าวหน้า',
+      name: 'ทศพล พรมยิ่ง',
       email: 'ceo@kaonaa.co.th',
       passwordHash,
       role: Role.CEO,
@@ -151,9 +151,9 @@ async function seedUsers() {
 
   await prisma.user.upsert({
     where: { email: 'cfo@kaonaa.co.th' },
-    update: {},
+    update: { name: 'เมวิกา พรมยิ่ง' },
     create: {
-      name: 'สมหญิง ก้าวหน้า',
+      name: 'เมวิกา พรมยิ่ง',
       email: 'cfo@kaonaa.co.th',
       passwordHash,
       role: Role.CFO,
