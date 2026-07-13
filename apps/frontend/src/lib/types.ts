@@ -541,3 +541,49 @@ export interface WhtCertificate {
   issueDate: string;
   bill?: Bill;
 }
+
+export type MarketPositioning = 'RED_OCEAN' | 'BLUE_OCEAN';
+
+export interface MarketComparable {
+  id: string;
+  costCenterId: string;
+  projectName: string;
+  developerName: string | null;
+  location: string;
+  distanceKm: number | null;
+  houseType: string | null;
+  usableAreaSqm: number | null;
+  priceMin: number;
+  priceMax: number;
+  unitsTotal: number | null;
+  unitsSold: number | null;
+  launchDate: string | null;
+  promotion: string | null;
+  notes: string | null;
+}
+
+export interface MarketMetrics {
+  competitorCount: number;
+  avgPricePerSqm: number | null;
+  minPricePerSqm: number | null;
+  maxPricePerSqm: number | null;
+  priceSpreadPercent: number | null;
+  avgMonthlyAbsorptionPercent: number | null;
+}
+
+export interface MarketAnalysisReport {
+  id: string;
+  costCenterId: string;
+  ownPricePerSqm: number | null;
+  ownPromotion: string | null;
+  positioning: MarketPositioning | null;
+  positioningScore: number | null;
+  summary: string | null;
+  recommendations: string | null;
+  generatedAt: string | null;
+}
+
+export interface GenerateInsightsResult {
+  report: MarketAnalysisReport;
+  metrics: MarketMetrics;
+}
