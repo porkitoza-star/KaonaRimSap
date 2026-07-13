@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api, ApiError } from '@/lib/api';
 import type { Account, Contact, CostCenter, Invoice } from '@/lib/types';
@@ -36,6 +36,10 @@ export default function InvoicesPage() {
   const [dueDate, setDueDate] = useState('');
   const [lines, setLines] = useState<LineDraft[]>([emptyLine()]);
   const [submitting, setSubmitting] = useState(false);
+
+  const [reitemizingId, setReitemizingId] = useState<string | null>(null);
+  const [reitemizeLines, setReitemizeLines] = useState<LineDraft[]>([]);
+  const [reitemizeSubmitting, setReitemizeSubmitting] = useState(false);
 
   async function reload() {
     if (!token) return;
@@ -122,6 +126,43 @@ export default function InvoicesPage() {
     }
   }
 
+  function openReitemize(inv: Invoice) {
+    setError(null);
+    setReitemizingId(inv.id);
+    setReitemizeLines(
+      (inv.lines ?? []).map((l) => ({
+        description: l.description,
+        amount: l.amount,
+        costCenterId: l.costCenterId,
+        accountId: l.accountId,
+      })),
+    );
+  }
+
+  function updateReitemizeLine(index: number, patch: Partial<LineDraft>) {
+    setReitemizeLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
+  }
+
+  async function handleReitemizeSubmit(e: FormEvent, id: string) {
+    e.preventDefault();
+    if (!token) return;
+    setReitemizeSubmitting(true);
+    setError(null);
+    try {
+      await api.post(
+        `/invoices/${id}/reitemize`,
+        { lines: reitemizeLines.map((l) => ({ ...l, amount: Number(l.amount) })) },
+        token,
+      );
+      setReitemizingId(null);
+      await reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'แบ่งย่อยรายการไม่สำเร็จ');
+    } finally {
+      setReitemizeSubmitting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -161,37 +202,152 @@ export default function InvoicesPage() {
             </thead>
             <tbody>
               {invoices.map((inv) => (
-                <tr key={inv.id} className="border-b border-gray-50">
-                  <td className="py-2 pr-4">{inv.number}</td>
-                  <td className="py-2 pr-4">{inv.contact?.name}</td>
-                  <td className="py-2 pr-4 text-xs text-gray-500">{formatDate(inv.dueDate)}</td>
-                  <td className="py-2 pr-4 text-right tabular-nums">{formatThb(inv.totalAmount)}</td>
-                  <td className="py-2 pr-4">
-                    <StatusBadge status={inv.status} />
-                  </td>
-                  {canManage && (
-                    <td className="py-2">
-                      {inv.status === 'DRAFT' && (
-                        <div className="flex gap-2">
-                          <button
-                            disabled={busyId === inv.id}
-                            onClick={() => handleIssue(inv.id)}
-                            className={`${secondaryButton} px-3 py-1 text-xs`}
-                          >
-                            ออกใบแจ้งหนี้
-                          </button>
-                          <button
-                            disabled={busyId === inv.id}
-                            onClick={() => handleVoid(inv.id)}
-                            className={`${secondaryButton} px-3 py-1 text-xs`}
-                          >
-                            ยกเลิก
-                          </button>
-                        </div>
-                      )}
+                <Fragment key={inv.id}>
+                  <tr className="border-b border-gray-50">
+                    <td className="py-2 pr-4">{inv.number}</td>
+                    <td className="py-2 pr-4">{inv.contact?.name}</td>
+                    <td className="py-2 pr-4 text-xs text-gray-500">{formatDate(inv.dueDate)}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{formatThb(inv.totalAmount)}</td>
+                    <td className="py-2 pr-4">
+                      <StatusBadge status={inv.status} />
                     </td>
+                    {canManage && (
+                      <td className="py-2">
+                        <div className="flex flex-wrap gap-2">
+                          {inv.status === 'DRAFT' && (
+                            <>
+                              <button
+                                disabled={busyId === inv.id}
+                                onClick={() => handleIssue(inv.id)}
+                                className={`${secondaryButton} px-3 py-1 text-xs`}
+                              >
+                                ออกใบแจ้งหนี้
+                              </button>
+                              <button
+                                disabled={busyId === inv.id}
+                                onClick={() => handleVoid(inv.id)}
+                                className={`${secondaryButton} px-3 py-1 text-xs`}
+                              >
+                                ยกเลิก
+                              </button>
+                            </>
+                          )}
+                          {user?.role === 'CEO' && inv.status !== 'DRAFT' && inv.status !== 'VOID' && (
+                            <button
+                              onClick={() =>
+                                reitemizingId === inv.id ? setReitemizingId(null) : openReitemize(inv)
+                              }
+                              className={`${secondaryButton} px-3 py-1 text-xs`}
+                            >
+                              {reitemizingId === inv.id ? 'ยกเลิกการแบ่งย่อย' : 'แบ่งย่อยรายการ'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                  {reitemizingId === inv.id && (
+                    <tr className="border-b border-gray-50 bg-amber-50/40">
+                      <td colSpan={canManage ? 6 : 5} className="py-3">
+                        <form
+                          onSubmit={(e) => handleReitemizeSubmit(e, inv.id)}
+                          className="space-y-3 rounded-lg border border-amber-200 bg-white p-4"
+                        >
+                          <p className="text-xs font-medium text-gray-600">
+                            แบ่งยอดรายรับก้อนใหญ่ของใบแจ้งหนี้เลขที่ {inv.number} ({formatThb(inv.subtotal)} ก่อน VAT)
+                            ออกเป็นรายการย่อย — ระบบจะปรับรายละเอียดเท่านั้น ยอดลูกหนี้และ VAT ที่บันทึกไปแล้วจะไม่
+                            เปลี่ยนแปลง
+                          </p>
+                          {reitemizeLines.map((line, idx) => (
+                            <div
+                              key={idx}
+                              className="grid grid-cols-1 gap-2 rounded-lg border border-gray-100 p-3 sm:grid-cols-4"
+                            >
+                              <input
+                                className={input}
+                                placeholder="รายละเอียด"
+                                value={line.description}
+                                onChange={(e) => updateReitemizeLine(idx, { description: e.target.value })}
+                                required
+                              />
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                className={input}
+                                placeholder="จำนวนเงิน"
+                                value={line.amount}
+                                onChange={(e) => updateReitemizeLine(idx, { amount: e.target.value })}
+                                required
+                              />
+                              <select
+                                className={input}
+                                value={line.costCenterId}
+                                onChange={(e) => updateReitemizeLine(idx, { costCenterId: e.target.value })}
+                                required
+                              >
+                                <option value="">-- Cost Center --</option>
+                                {costCenters.map((cc) => (
+                                  <option key={cc.id} value={cc.id}>
+                                    {cc.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <select
+                                className={input}
+                                value={line.accountId}
+                                onChange={(e) => updateReitemizeLine(idx, { accountId: e.target.value })}
+                                required
+                              >
+                                <option value="">-- บัญชีรายได้ --</option>
+                                {accounts.map((acc) => (
+                                  <option key={acc.id} value={acc.id}>
+                                    {acc.code} {acc.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              className={secondaryButton}
+                              onClick={() => setReitemizeLines((p) => [...p, emptyLine()])}
+                            >
+                              + เพิ่มรายการย่อย
+                            </button>
+                            {reitemizeLines.length > 1 && (
+                              <button
+                                type="button"
+                                className={secondaryButton}
+                                onClick={() => setReitemizeLines((p) => p.slice(0, -1))}
+                              >
+                                - ลบรายการสุดท้าย
+                              </button>
+                            )}
+                            <span className="text-xs text-gray-500">
+                              ยอดรวมที่กรอก:{' '}
+                              {formatThb(reitemizeLines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0))} /
+                              ต้องเท่ากับ {formatThb(inv.subtotal)}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="submit" disabled={reitemizeSubmitting} className={primaryButton}>
+                              {reitemizeSubmitting ? 'กำลังบันทึก...' : 'บันทึกการแบ่งย่อย'}
+                            </button>
+                            <button
+                              type="button"
+                              className={secondaryButton}
+                              onClick={() => setReitemizingId(null)}
+                            >
+                              ยกเลิก
+                            </button>
+                          </div>
+                        </form>
+                      </td>
+                    </tr>
                   )}
-                </tr>
+                </Fragment>
               ))}
               {invoices.length === 0 && (
                 <tr>

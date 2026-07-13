@@ -18,6 +18,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-user.decorator';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { ReitemizeInvoiceDto } from './dto/reitemize-invoice.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('invoices')
@@ -68,5 +69,15 @@ export class InvoicesController {
   @Roles(Role.ACCOUNTANT, Role.CFO, Role.CEO)
   void(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.invoicesService.void(id, user.userId);
+  }
+
+  @Post(':id/reitemize')
+  @Roles(Role.CEO)
+  reitemize(
+    @Param('id') id: string,
+    @Body() dto: ReitemizeInvoiceDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.invoicesService.reitemize(id, dto, user.userId);
   }
 }

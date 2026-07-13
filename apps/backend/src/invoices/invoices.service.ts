@@ -5,6 +5,7 @@ import { AuditService } from '../audit/audit.service';
 import { JournalService } from '../journal/journal.service';
 import { buildExcelBuffer, parseExcelRows } from '../common/excel-export.util';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { ReitemizeInvoiceDto } from './dto/reitemize-invoice.dto';
 import { VAT_RATE, STANDARD_ACCOUNT_CODES } from '../common/constants';
 
 function round2(n: number) {
@@ -157,6 +158,78 @@ export class InvoicesService {
       after: updated,
     });
     return updated;
+  }
+
+  async reitemize(id: string, dto: ReitemizeInvoiceDto, userId: string) {
+    const invoice = await this.findOne(id);
+    if (invoice.status === InvoiceStatus.DRAFT || invoice.status === InvoiceStatus.VOID) {
+      throw new BadRequestException(
+        'ฟีเจอร์นี้ใช้ได้เฉพาะใบแจ้งหนี้ที่ออกแล้วเท่านั้น (ใบร่างแก้ไขรายการได้โดยตรง)',
+      );
+    }
+
+    const newSubtotal = round2(dto.lines.reduce((sum, line) => sum + line.amount, 0));
+    if (Math.round(newSubtotal * 100) !== Math.round(Number(invoice.subtotal) * 100)) {
+      throw new BadRequestException(
+        `ยอดรวมรายการใหม่ (${newSubtotal.toFixed(2)}) ต้องเท่ากับยอดก่อน VAT เดิมของใบแจ้งหนี้ (${Number(
+          invoice.subtotal,
+        ).toFixed(2)}) เพื่อไม่ให้กระทบยอดลูกหนี้และ VAT ที่บันทึกไปแล้ว`,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      await this.journal.postEntry(
+        {
+          entryDate: new Date(),
+          description: `ปรับรายละเอียดรายรับใบแจ้งหนี้เลขที่ ${invoice.number} (แบ่งย่อยรายการ)`,
+          sourceType: 'INVOICE_REITEMIZE',
+          sourceId: invoice.id,
+          createdById: userId,
+          lines: [
+            ...invoice.lines.map((line) => ({
+              accountId: line.accountId,
+              costCenterId: line.costCenterId,
+              debit: Number(line.amount),
+              memo: `ย้อนกลับรายการเดิม: ${line.description}`,
+            })),
+            ...dto.lines.map((line) => ({
+              accountId: line.accountId,
+              costCenterId: line.costCenterId,
+              credit: line.amount,
+              memo: line.description,
+            })),
+          ],
+        },
+        tx,
+      );
+
+      await tx.invoiceLine.deleteMany({ where: { invoiceId: id } });
+      await tx.invoiceLine.createMany({
+        data: dto.lines.map((line) => ({
+          invoiceId: id,
+          description: line.description,
+          amount: line.amount,
+          costCenterId: line.costCenterId,
+          accountId: line.accountId,
+        })),
+      });
+
+      return tx.invoice.findUniqueOrThrow({
+        where: { id },
+        include: { contact: true, lines: { include: { costCenter: true, account: true } } },
+      });
+    });
+
+    await this.audit.log({
+      userId,
+      action: 'REITEMIZE',
+      entityType: 'Invoice',
+      entityId: id,
+      before: invoice,
+      after: result,
+    });
+
+    return result;
   }
 
   async importExcel(buffer: Buffer, userId: string) {
