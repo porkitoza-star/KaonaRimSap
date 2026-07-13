@@ -1,4 +1,4 @@
-import { Controller, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -25,7 +25,17 @@ export class LedgerImportController {
   @Post('commit')
   @Roles(Role.CEO)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
-  commit(@UploadedFile() file: Express.Multer.File, @CurrentUser() user: AuthenticatedUser) {
-    return this.ledgerImportService.commit(file.buffer, user.userId);
+  commit(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body('forceDuplicates') forceDuplicates?: string,
+  ) {
+    return this.ledgerImportService.commit(file.buffer, user.userId, file.originalname, forceDuplicates === 'true');
+  }
+
+  @Get('history')
+  @Roles(Role.ACCOUNTANT, Role.CFO, Role.CEO)
+  history() {
+    return this.ledgerImportService.listImportHistory();
   }
 }

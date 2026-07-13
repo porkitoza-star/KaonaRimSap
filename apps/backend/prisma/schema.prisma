@@ -518,3 +518,23 @@ model SupplierInvoiceRecord {
 
   @@map("supplier_invoice_records")
 }
+
+// A permanent record of every ledger Excel file ever uploaded, so the raw
+// parsed rows and the resulting counts stay on file after the upload — the
+// business owner re-uploads the same (updated) file repeatedly over time and
+// wants a history of what was imported and when, without needing the
+// original file to check it later.
+model LedgerImportLog {
+  id                  String   @id @default(uuid())
+  fileName            String
+  uploadedById        String
+  uploadedAt          DateTime @default(now())
+  billCount           Int
+  invoiceCount        Int
+  duplicateBillCount  Int
+  duplicateInvoiceCount Int
+  forcedDuplicates    Boolean  @default(false)
+  rawDataJson         Json
+
+  @@map("ledger_import_logs")
+}

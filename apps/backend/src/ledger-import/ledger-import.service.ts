@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { BillStatus, ContactType, CostCenterType, InvoiceStatus, PaymentStatus, Role } from '@prisma/client';
+import { BillStatus, ContactType, CostCenterType, InvoiceStatus, Prisma, PaymentStatus, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillsService } from '../bills/bills.service';
 import { InvoicesService } from '../invoices/invoices.service';
@@ -11,10 +11,21 @@ import {
   resolveHouseInfo,
   resolveExpenseContactName,
   resolveIncomeContactName,
+  type ParsedBillGroup,
+  type ParsedInvoiceRow,
 } from './ledger-parser';
 
 function round2(n: number) {
   return Math.round(n * 100) / 100;
+}
+
+// Prisma sends a plain JS `number` to a Decimal column using its full,
+// imprecise binary float value (e.g. 614556.07 is actually stored in IEEE754
+// as 614556.069999999948777...), which silently fails to match the exact
+// value Postgres has on file. Comparing Decimal columns for equality must
+// go through Prisma.Decimal built from the fixed 2-decimal string instead.
+function decimalEq(n: number): Prisma.Decimal {
+  return new Prisma.Decimal(n.toFixed(2));
 }
 
 interface Caches {
@@ -36,7 +47,7 @@ export class LedgerImportService {
     private paymentsService: PaymentsService,
   ) {}
 
-  preview(buffer: Buffer) {
+  async preview(buffer: Buffer) {
     const parsed = parseLedgerWorkbook(buffer);
     const supplierInvoices = parseSupplierInvoices(buffer);
 
@@ -52,6 +63,11 @@ export class LedgerImportService {
 
     const materialInvoices = supplierInvoices.invoices.filter((i) => i.type === 'MATERIAL');
     const laborInvoices = supplierInvoices.invoices.filter((i) => i.type === 'LABOR');
+
+    const [duplicateBillCount, duplicateInvoiceCount] = await Promise.all([
+      this.countDuplicateBills(parsed.bills),
+      this.countDuplicateInvoices(parsed.invoices),
+    ]);
 
     return {
       billCount: parsed.bills.length,
@@ -81,7 +97,54 @@ export class LedgerImportService {
       totalMaterialAmount: round2(materialInvoices.reduce((sum, i) => sum + i.totalAmount, 0)),
       totalLaborAmount: round2(laborInvoices.reduce((sum, i) => sum + i.totalAmount, 0)),
       supplierInvoiceSkippedCount: supplierInvoices.skipped.length,
+      // Pre-checked against already-imported data so the business owner sees
+      // "X of these look like duplicates" before deciding to commit, instead
+      // of only finding out afterward.
+      duplicateBillCount,
+      duplicateInvoiceCount,
     };
+  }
+
+  // Read-only lookup — never creates a cost center. If it doesn't exist yet,
+  // the row can't possibly be a duplicate of something already imported.
+  private async findExistingCostCenterId(houseRaw: string): Promise<string | null> {
+    const info = resolveHouseInfo(houseRaw);
+    const cc = await this.prisma.costCenter.findFirst({ where: { name: info.name } });
+    return cc?.id ?? null;
+  }
+
+  private async countDuplicateBills(bills: ParsedBillGroup[]): Promise<number> {
+    let count = 0;
+    for (const b of bills) {
+      const costCenterId = await this.findExistingCostCenterId(b.house);
+      if (!costCenterId) continue;
+      const description = b.descriptions.slice(0, 3).join('; ').slice(0, 490);
+      const existing = await this.prisma.billLine.findFirst({
+        where: { costCenterId, description, amount: decimalEq(b.amount), bill: { status: { not: BillStatus.VOID } } },
+      });
+      if (existing) count++;
+    }
+    return count;
+  }
+
+  private async countDuplicateInvoices(invoices: ParsedInvoiceRow[]): Promise<number> {
+    let count = 0;
+    for (const inv of invoices) {
+      const costCenterId = await this.findExistingCostCenterId(inv.house);
+      if (!costCenterId) continue;
+      const subtotal = round2(inv.amount / (1 + VAT_RATE));
+      const description = inv.description.slice(0, 490);
+      const existing = await this.prisma.invoiceLine.findFirst({
+        where: {
+          costCenterId,
+          description,
+          amount: decimalEq(subtotal),
+          invoice: { status: { not: InvoiceStatus.VOID } },
+        },
+      });
+      if (existing) count++;
+    }
+    return count;
   }
 
   private async getOrCreateCostCenter(caches: Caches, houseRaw: string): Promise<string> {
@@ -110,7 +173,7 @@ export class LedgerImportService {
     return contact.id;
   }
 
-  async commit(buffer: Buffer, userId: string) {
+  async commit(buffer: Buffer, userId: string, fileName: string, forceDuplicates = false) {
     const parsed = parseLedgerWorkbook(buffer);
     const caches: Caches = { costCenters: new Map(), contacts: new Map() };
 
@@ -141,22 +204,26 @@ export class LedgerImportService {
           where: {
             costCenterId,
             description,
-            amount: b.amount,
+            amount: decimalEq(b.amount),
             bill: { status: { not: BillStatus.VOID } },
           },
         });
         if (existingBillLine) {
           duplicateBills++;
-          continue;
+          if (!forceDuplicates) continue;
         }
 
         const contactName = resolveExpenseContactName(b.method);
         const contactId = await this.getOrCreateContact(caches, contactName, ContactType.SUPPLIER);
         const dateIso = (b.date ?? new Date()).toISOString();
+        // A forced duplicate would otherwise collide with the original
+        // row's number (both derive from the same sourceRow) — suffix it
+        // so both can coexist.
+        const numberSuffix = existingBillLine ? `-DUP${Date.now()}${Math.random().toString(36).slice(2, 6)}` : '';
 
         const created = await this.billsService.create(
           {
-            number: `LEDGER-${b.sheetName.slice(0, 8)}-B${b.sourceRow}`,
+            number: `LEDGER-${b.sheetName.slice(0, 8)}-B${b.sourceRow}${numberSuffix}`,
             contactId,
             issueDate: dateIso,
             dueDate: dateIso,
@@ -221,22 +288,23 @@ export class LedgerImportService {
           where: {
             costCenterId,
             description,
-            amount: subtotal,
+            amount: decimalEq(subtotal),
             invoice: { status: { not: InvoiceStatus.VOID } },
           },
         });
         if (existingInvoiceLine) {
           duplicateInvoices++;
-          continue;
+          if (!forceDuplicates) continue;
         }
 
         const contactName = resolveIncomeContactName(inv.description);
         const contactId = await this.getOrCreateContact(caches, contactName, ContactType.CUSTOMER);
         const dateIso = (inv.date ?? new Date()).toISOString();
+        const numberSuffix = existingInvoiceLine ? `-DUP${Date.now()}${Math.random().toString(36).slice(2, 6)}` : '';
 
         const created = await this.invoicesService.create(
           {
-            number: `LEDGER-${inv.sheetName.slice(0, 8)}-I${inv.sourceRow}`,
+            number: `LEDGER-${inv.sheetName.slice(0, 8)}-I${inv.sourceRow}${numberSuffix}`,
             contactId,
             issueDate: dateIso,
             dueDate: dateIso,
@@ -282,12 +350,12 @@ export class LedgerImportService {
             type: inv.type,
             invoiceDate: inv.invoiceDate,
             supplierName: inv.supplierName,
-            totalAmount: inv.totalAmount,
+            totalAmount: decimalEq(inv.totalAmount),
           },
         });
         if (existing) {
           duplicateSupplierInvoices++;
-          continue;
+          if (!forceDuplicates) continue;
         }
         await this.prisma.supplierInvoiceRecord.create({
           data: {
@@ -312,6 +380,40 @@ export class LedgerImportService {
       }
     }
 
+    // Keep a permanent record of this upload — the raw parsed rows plus the
+    // resulting counts — so past imports have a history without needing the
+    // original file again, and so future uploads can be checked against it.
+    await this.prisma.ledgerImportLog.create({
+      data: {
+        fileName,
+        uploadedById: userId,
+        billCount: createdBills,
+        invoiceCount: createdInvoices,
+        duplicateBillCount: duplicateBills,
+        duplicateInvoiceCount: duplicateInvoices,
+        forcedDuplicates: forceDuplicates,
+        rawDataJson: {
+          bills: parsed.bills.map((b) => ({
+            date: b.date?.toISOString() ?? null,
+            house: b.house,
+            category: b.category,
+            amount: b.amount,
+            descriptions: b.descriptions,
+            sheetName: b.sheetName,
+            sourceRow: b.sourceRow,
+          })),
+          invoices: parsed.invoices.map((i) => ({
+            date: i.date?.toISOString() ?? null,
+            house: i.house,
+            amount: i.amount,
+            description: i.description,
+            sheetName: i.sheetName,
+            sourceRow: i.sourceRow,
+          })),
+        },
+      },
+    });
+
     return {
       createdBills,
       createdInvoices,
@@ -324,5 +426,21 @@ export class LedgerImportService {
       duplicateSupplierInvoices,
       errors: runErrors,
     };
+  }
+
+  async listImportHistory() {
+    return this.prisma.ledgerImportLog.findMany({
+      select: {
+        id: true,
+        fileName: true,
+        uploadedAt: true,
+        billCount: true,
+        invoiceCount: true,
+        duplicateBillCount: true,
+        duplicateInvoiceCount: true,
+        forcedDuplicates: true,
+      },
+      orderBy: { uploadedAt: 'desc' },
+    });
   }
 }
