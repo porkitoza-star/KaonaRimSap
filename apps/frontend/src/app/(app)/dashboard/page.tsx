@@ -246,8 +246,9 @@ export default function DashboardPage() {
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
           <h2 className="text-sm font-semibold text-gray-900">ค่าแรงช่างและค่าวัสดุที่จ่าย</h2>
           <p className="mt-1 text-xs text-gray-400">
-            จากทะเบียนใบแจ้งหนี้ผู้จำหน่าย (ชีท &quot;ค่าของ&quot;/&quot;ค่าแรง&quot; ที่นำเข้าจาก Excel) — รวม{' '}
-            {formatThb(laborMaterial.totalLabor)} ค่าแรง และ {formatThb(laborMaterial.totalMaterial)} ค่าวัสดุ
+            รวมทั้งใบแจ้งหนี้ผู้จำหน่ายที่เป็นทางการ (ชีท &quot;ค่าของ&quot;/&quot;ค่าแรง&quot;) และรายการค่าแรงที่จ่ายตรงในบัญชีรายรับ-รายจ่ายหลัก
+            (ตรวจจับจากคำว่า &quot;ค่าแรง&quot;/&quot;ค่าจ้าง&quot;/&quot;ช่าง&quot; ในรายการ — {formatThb(laborMaterial.totalLaborFromLedgerKeywords)} จากส่วนนี้)
+            — รวม {formatThb(laborMaterial.totalLabor)} ค่าแรง และ {formatThb(laborMaterial.totalMaterial)} ค่าวัสดุ
           </p>
           <div className="mt-4">
             <LaborMaterialChart series={laborMaterial.series} />

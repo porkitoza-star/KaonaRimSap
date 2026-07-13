@@ -468,6 +468,7 @@ export interface LaborMaterialSummary {
   series: LaborMaterialPeriod[];
   totalLabor: number;
   totalMaterial: number;
+  totalLaborFromLedgerKeywords: number;
 }
 
 export interface ProjectFeasibility {
